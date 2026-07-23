@@ -52,7 +52,7 @@ export function ContainerRow({
         animationFillMode: "backwards",
       }}
       className={cn(
-        "group flex cursor-default animate-in items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors duration-300 fade-in slide-in-from-bottom-1",
+        "group flex cursor-default animate-in items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-300 fade-in slide-in-from-bottom-1",
         selected ? "bg-accent" : "hover:bg-accent/40",
       )}
     >
@@ -83,15 +83,16 @@ export function ContainerRow({
             </span>
           )}
         </span>
-        <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[11px] text-muted-foreground/80">
-            {c.image}
-          </span>
-          <PortChips ports={c.ports} />
+        <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground/70">
+          {c.image}
         </span>
       </div>
+      {/* puertos a la derecha, como el mockup; en hover ceden el sitio a las acciones */}
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 group-hover:hidden">
+        <PortChips ports={c.ports} />
+      </div>
       <div
-        className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+        className="ml-auto hidden shrink-0 items-center gap-1 group-hover:flex"
         onClick={(e) => e.stopPropagation()}
       >
         {running ? (

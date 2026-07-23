@@ -39,7 +39,7 @@ export function PortChips({ ports }: { ports: PortMapping[] }) {
               void openUrl(`http://${hostAddr}:${p.publicPort}`);
             }}
             title={`${p.publicPort} en ${hostAddr} → ${p.privatePort} del contenedor · clic para abrir`}
-            className="shrink-0 rounded bg-secondary/40 px-1.5 py-px font-mono text-[10px] transition-colors hover:bg-secondary hover:text-emerald-300"
+            className="shrink-0 rounded-md bg-secondary/60 px-2 py-0.5 font-mono text-[10.5px] transition-colors hover:bg-secondary hover:text-emerald-300"
           >
             <span className="text-foreground/90">{p.publicPort}</span>
             <span className="text-muted-foreground/50">→{p.privatePort}</span>
@@ -48,7 +48,7 @@ export function PortChips({ ports }: { ports: PortMapping[] }) {
           <span
             key={`${p.privatePort}/${p.protocol}`}
             title={`Puerto ${p.privatePort} interno del contenedor (sin publicar)`}
-            className="shrink-0 rounded bg-secondary/25 px-1.5 py-px font-mono text-[10px] text-muted-foreground/50"
+            className="shrink-0 rounded-md bg-secondary/30 px-2 py-0.5 font-mono text-[10.5px] text-muted-foreground/50"
           >
             {p.privatePort}/{p.protocol}
           </span>

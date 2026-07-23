@@ -9,6 +9,7 @@ import { DetailPanel } from "@/components/DetailPanel";
 import { Header } from "@/components/Header";
 import { ResourceList } from "@/components/ResourceList";
 import { Sidebar } from "@/components/Sidebar";
+import { StatusBar } from "@/components/StatusBar";
 import { TerminalDrawer } from "@/components/TerminalDrawer";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { Toaster } from "@/components/ui/sonner";
@@ -66,6 +67,7 @@ function App() {
           </div>
         </div>
         <TerminalDrawer />
+        <StatusBar />
       </main>
       {view === "containers" && <DetailPanel />}
       <ComposeDialog open={composeOpen} onOpenChange={setComposeOpen} />

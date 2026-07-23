@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Boxes,
   ChevronRight,
   Container,
   RotateCw,
@@ -112,7 +111,6 @@ export function ContainerList() {
           <Group
             key={name}
             title={name}
-            icon={<Boxes className="size-4" />}
             items={sortContainers(items)}
             project
             // con búsqueda activa se expande todo para ver los resultados
@@ -123,7 +121,6 @@ export function ContainerList() {
       {loose.length > 0 && (
         <Group
           title="Sueltos"
-          icon={<Container className="size-4" />}
           items={sortContainers(loose)}
           open={Boolean(query) || !collapsed.has("__loose__")}
           onToggle={() => toggle("__loose__")}
@@ -135,14 +132,12 @@ export function ContainerList() {
 
 function Group({
   title,
-  icon,
   items,
   open,
   onToggle,
   project = false,
 }: {
   title: string;
-  icon: React.ReactNode;
   items: ContainerInfo[];
   open: boolean;
   onToggle: () => void;
@@ -177,7 +172,6 @@ function Group({
               open && "rotate-90",
             )}
           />
-          <span className="text-muted-foreground">{icon}</span>
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
             {title}
           </span>

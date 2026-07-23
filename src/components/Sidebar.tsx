@@ -10,7 +10,6 @@ import {
   Server,
 } from "lucide-react";
 
-import logo from "@/assets/narwhal.png";
 import { ConnectDialog } from "@/components/ConnectDialog";
 import { HostForm } from "@/components/HostForm";
 import { cn } from "@/lib/utils";
@@ -28,10 +27,14 @@ export function Sidebar() {
   const hosts = useContainers((s) => s.hosts);
   const activeHostId = useContainers((s) => s.activeHostId);
   const status = useContainers((s) => s.status);
-  const docker = useContainers((s) => s.docker);
   const connectTo = useContainers((s) => s.connectTo);
   const view = useContainers((s) => s.view);
   const setView = useContainers((s) => s.setView);
+  const activeName = useContainers((s) =>
+    s.activeHostId === LOCAL_HOST
+      ? "Esta máquina"
+      : (s.hosts.find((h) => h.id === s.activeHostId)?.name ?? "—"),
+  );
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<HostConfig | null>(null);
@@ -65,16 +68,12 @@ export function Sidebar() {
     <aside className="flex w-52 shrink-0 flex-col border-r border-border bg-card/30">
       <div
         data-tauri-drag-region
-        className="flex h-12 shrink-0 items-center gap-2 pl-20"
+        className="flex h-12 shrink-0 items-center gap-2 pl-20 pr-3"
       >
-        <img
-          src={logo}
-          alt=""
-          className="pointer-events-none size-6 shrink-0 rounded-md"
-        />
-        <span className="pointer-events-none text-sm font-semibold tracking-wide">
-          Narwhal
-        </span>
+        <div className="pointer-events-none flex min-w-0 items-center gap-2 rounded-lg bg-secondary/70 px-2.5 py-1">
+          <span className={cn("size-1.5 shrink-0 rounded-full", statusDot)} />
+          <span className="truncate text-xs font-medium">{activeName}</span>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto overscroll-none p-2">
@@ -135,16 +134,6 @@ export function Sidebar() {
           Añadir servidor
         </button>
       </nav>
-
-      <footer className="border-t border-border/60 px-4 py-3">
-        <span className="block truncate text-[11px] text-muted-foreground">
-          {status === "connected" && docker
-            ? `Docker ${docker.version}`
-            : status === "connecting"
-              ? "Conectando…"
-              : "Sin conexión"}
-        </span>
-      </footer>
 
       <HostForm open={formOpen} host={editing} onOpenChange={setFormOpen} />
       {ask && (

@@ -48,9 +48,9 @@ export function Header() {
       data-tauri-drag-region
       className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4"
     >
-      <div className="pointer-events-none">
-        <h1 className="text-sm font-semibold leading-tight">{TITLES[view]}</h1>
-        <p className="text-[11px] leading-tight text-muted-foreground">
+      <div className="pointer-events-none flex min-w-0 items-baseline gap-2.5">
+        <h1 className="text-sm font-semibold">{TITLES[view]}</h1>
+        <p className="truncate text-[11px] text-muted-foreground">
           {view === "containers" ? `${running} en ejecución` : `${count} en total`}
         </p>
       </div>
