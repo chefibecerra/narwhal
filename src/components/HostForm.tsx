@@ -19,8 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import * as ipc from "@/lib/ipc";
+import { cn } from "@/lib/utils";
 import { useContainers } from "@/stores/containers";
-import type { HostConfig, SshConfigHost } from "@/types";
+import type { HostConfig, SshConfigHost, SshKey } from "@/types";
 
 const EMPTY: HostConfig = {
   id: "",
@@ -28,9 +29,13 @@ const EMPTY: HostConfig = {
   hostname: "",
   port: 22,
   username: "root",
+  authKind: "key",
   keyPath: null,
   socketPath: null,
 };
+
+const AUTO = "__auto__";
+const CUSTOM = "__custom__";
 
 export function HostForm({
   open,
@@ -45,6 +50,16 @@ export function HostForm({
   const deleteHost = useContainers((s) => s.deleteHost);
   const [form, setForm] = useState<HostConfig>(EMPTY);
   const [configHosts, setConfigHosts] = useState<SshConfigHost[]>([]);
+  const [keys, setKeys] = useState<SshKey[]>([]);
+  const [keySel, setKeySel] = useState<string>(AUTO);
+  const [customPath, setCustomPath] = useState("");
+
+  /** selección del desplegable a partir de una ruta guardada */
+  const selForPath = (path: string | null, detected: SshKey[]) => {
+    if (!path) return { sel: AUTO, custom: "" };
+    if (detected.some((k) => k.path === path)) return { sel: path, custom: "" };
+    return { sel: CUSTOM, custom: path };
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +68,15 @@ export function HostForm({
       .readSshConfig()
       .then(setConfigHosts)
       .catch(() => setConfigHosts([]));
+    void ipc
+      .listSshKeys()
+      .then((detected) => {
+        setKeys(detected);
+        const { sel, custom } = selForPath(host?.keyPath ?? null, detected);
+        setKeySel(sel);
+        setCustomPath(custom);
+      })
+      .catch(() => setKeys([]));
   }, [open, host]);
 
   const importFrom = (alias: string) => {
@@ -64,8 +88,12 @@ export function HostForm({
       hostname: entry.hostname,
       username: entry.user ?? f.username,
       port: entry.port,
+      authKind: "key",
       keyPath: entry.identityFile,
     }));
+    const { sel, custom } = selForPath(entry.identityFile, keys);
+    setKeySel(sel);
+    setCustomPath(custom);
   };
 
   const valid =
@@ -75,12 +103,20 @@ export function HostForm({
 
   const submit = async () => {
     if (!valid) return;
+    const keyPath =
+      form.authKind === "password"
+        ? null
+        : keySel === AUTO
+          ? null
+          : keySel === CUSTOM
+            ? customPath.trim() || null
+            : keySel;
     await saveHost({
       ...form,
       name: form.name.trim(),
       hostname: form.hostname.trim(),
       username: form.username.trim(),
-      keyPath: form.keyPath?.trim() || null,
+      keyPath,
       socketPath: form.socketPath?.trim() || null,
     });
     onOpenChange(false);
@@ -154,17 +190,73 @@ export function HostForm({
               onChange={(e) => setForm({ ...form, username: e.target.value })}
             />
           </div>
+
           <div className="grid gap-1.5">
-            <Label htmlFor="host-key">Clave privada (opcional)</Label>
-            <Input
-              id="host-key"
-              value={form.keyPath ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, keyPath: e.target.value || null })
-              }
-              placeholder="~/.ssh/id_ed25519 — vacío: claves por defecto o contraseña"
-            />
+            <Label>Autenticación</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "h-8 text-xs",
+                  form.authKind === "key" && "border-foreground/40 bg-accent",
+                )}
+                onClick={() => setForm({ ...form, authKind: "key" })}
+              >
+                Clave SSH
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                  "h-8 text-xs",
+                  form.authKind === "password" &&
+                    "border-foreground/40 bg-accent",
+                )}
+                onClick={() => setForm({ ...form, authKind: "password" })}
+              >
+                Contraseña
+              </Button>
+            </div>
           </div>
+
+          {form.authKind === "key" ? (
+            <div className="grid gap-2">
+              <Select value={keySel} onValueChange={setKeySel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={AUTO}>
+                    Automática — probar las claves por defecto
+                  </SelectItem>
+                  {keys.map((k) => (
+                    <SelectItem key={k.path} value={k.path}>
+                      {k.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM}>Otra ruta…</SelectItem>
+                </SelectContent>
+              </Select>
+              {keySel === CUSTOM && (
+                <Input
+                  value={customPath}
+                  onChange={(e) => setCustomPath(e.target.value)}
+                  placeholder="~/.ssh/mi_clave"
+                  className="font-mono text-xs"
+                />
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Si la clave tiene passphrase, se pedirá al conectar.
+              </p>
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              La contraseña se pide al conectar y solo vive en memoria durante
+              la sesión. Nunca toca el disco.
+            </p>
+          )}
+
           <div className="grid gap-1.5">
             <Label htmlFor="host-socket">Socket de Docker (opcional)</Label>
             <Input

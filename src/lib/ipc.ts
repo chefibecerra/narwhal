@@ -9,6 +9,7 @@ import type {
   LogChunk,
   NetworkInfo,
   SshConfigHost,
+  SshKey,
   VolumeInfo,
 } from "@/types";
 
@@ -27,6 +28,8 @@ export const deleteHost = (id: string) => invoke<void>("host_delete", { id });
 
 export const readSshConfig = () =>
   invoke<SshConfigHost[]>("read_ssh_config");
+
+export const listSshKeys = () => invoke<SshKey[]>("list_ssh_keys");
 
 export const listContainers = () =>
   invoke<ContainerInfo[]>("docker_list_containers");

@@ -2,6 +2,7 @@ mod commands;
 mod composes;
 mod docker;
 mod hosts;
+mod keys;
 mod known_hosts;
 mod ssh;
 mod ssh_config;
@@ -85,6 +86,7 @@ pub fn run() {
             hosts::host_save,
             hosts::host_delete,
             ssh_config::read_ssh_config,
+            keys::list_ssh_keys,
             known_hosts::list_known_hosts,
             known_hosts::forget_known_host,
             tray::tray_update,

@@ -66,8 +66,16 @@ export interface HostConfig {
   hostname: string;
   port: number;
   username: string;
+  /** "key": clave concreta o las por defecto · "password": se pide al conectar */
+  authKind: "key" | "password";
   keyPath: string | null;
   socketPath: string | null;
+}
+
+/** clave privada detectada en ~/.ssh */
+export interface SshKey {
+  name: string;
+  path: string;
 }
 
 export interface SshConfigHost {

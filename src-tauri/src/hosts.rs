@@ -5,6 +5,16 @@ use crate::store::{read_collection, write_collection};
 
 const FILE: &str = "hosts.json";
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthKind {
+    /// clave concreta (key_path) o las por defecto de ~/.ssh si es None
+    #[default]
+    Key,
+    /// la contraseña se pide al conectar; jamás se guarda
+    Password,
+}
+
 /// Config de un servidor remoto. SIN secretos: la contraseña o la passphrase
 /// se piden al conectar y solo viven en memoria durante la conexión.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,7 +25,9 @@ pub struct HostConfig {
     pub hostname: String,
     pub port: u16,
     pub username: String,
-    /// ruta a la clave privada; None = probar claves por defecto o contraseña
+    #[serde(default)]
+    pub auth_kind: AuthKind,
+    /// ruta a la clave privada; None = probar claves por defecto
     #[serde(default)]
     pub key_path: Option<String>,
     /// socket de docker en el servidor; None = /var/run/docker.sock

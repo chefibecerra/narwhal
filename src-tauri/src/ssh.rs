@@ -162,34 +162,45 @@ pub async fn connect(
         }
     };
 
-    let authenticated = match (&cfg.key_path, &secret) {
-        (Some(key_path), passphrase) => {
-            let key = load_secret_key(expand_tilde(key_path), passphrase.as_deref())
-                .map_err(|e| format!("passphrase: no se pudo cargar la clave: {e}"))?;
-            authenticate_key(&mut handle, &cfg.username, key).await?
-        }
-        (None, Some(password)) => {
-            let direct = handle
-                .authenticate_password(&cfg.username, password)
-                .await
-                .map_err(|e| e.to_string())?
-                .success();
-            if direct {
-                true
-            } else {
-                keyboard_interactive(&mut handle, &cfg.username, password).await?
+    use crate::hosts::AuthKind;
+
+    let authenticated = match cfg.auth_kind {
+        AuthKind::Password => match &secret {
+            Some(password) => {
+                let direct = handle
+                    .authenticate_password(&cfg.username, password)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .success();
+                if direct {
+                    true
+                } else {
+                    keyboard_interactive(&mut handle, &cfg.username, password).await?
+                }
             }
-        }
-        (None, None) => try_default_keys(&mut handle, &cfg.username).await?,
+            None => return Err("auth: este servidor usa contraseña".into()),
+        },
+        AuthKind::Key => match (&cfg.key_path, &secret) {
+            (Some(key_path), passphrase) => {
+                let key = load_secret_key(expand_tilde(key_path), passphrase.as_deref())
+                    .map_err(|e| format!("passphrase: no se pudo cargar la clave: {e}"))?;
+                authenticate_key(&mut handle, &cfg.username, key).await?
+            }
+            (None, _) => try_default_keys(&mut handle, &cfg.username).await?,
+        },
     };
 
     if !authenticated {
-        return Err(match cfg.key_path {
-            Some(_) => format!(
+        return Err(match cfg.auth_kind {
+            AuthKind::Password => format!(
+                "auth: contraseña rechazada (usuario {}; distingue mayúsculas)",
+                cfg.username
+            ),
+            AuthKind::Key if cfg.key_path.is_some() => format!(
                 "auth: el servidor rechazó la clave (usuario {}; distingue mayúsculas)",
                 cfg.username
             ),
-            None => "auth: se necesita contraseña o una clave SSH válida".to_string(),
+            AuthKind::Key => "auth: ninguna clave por defecto funcionó".to_string(),
         });
     }
     Ok(handle)
