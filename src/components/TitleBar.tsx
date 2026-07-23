@@ -20,9 +20,12 @@ export function TitleBar() {
   return (
     <div
       data-tauri-drag-region
-      className="flex h-12 shrink-0 items-center gap-2 border-b border-border pl-20 pr-3"
+      className="relative h-12 shrink-0 border-b border-border"
     >
-      <div className="pointer-events-none flex min-w-0 items-center gap-2 rounded-lg bg-secondary px-3 py-[5px]">
+      {/* posición absoluta calzada con los semáforos nativos (y:17, 12px de
+          alto → centro 23px); misma geometría que el mockup de la web:
+          hueco de 14px, padding 5x12, radio 7 */}
+      <div className="pointer-events-none absolute left-[82px] top-[12px] flex max-w-[50%] items-center gap-[7px] rounded-[7px] bg-secondary px-3 py-[5px]">
         <span className={cn("size-1.5 shrink-0 rounded-full", statusDot)} />
         <span className="truncate text-xs font-medium leading-none">
           {activeName}
