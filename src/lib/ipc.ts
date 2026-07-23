@@ -120,6 +120,14 @@ export const removeNetwork = (id: string) =>
   invoke<void>("docker_remove_network", { id });
 export const pruneNetworks = () => invoke<number>("docker_prune_networks");
 
+/** biblioteca local de composes desplegados */
+export const composeSavedList = () =>
+  invoke<string[]>("compose_saved_list");
+export const composeSavedRead = (project: string) =>
+  invoke<string>("compose_saved_read", { project });
+export const composeSavedSave = (project: string, yaml: string) =>
+  invoke<void>("compose_saved_save", { project, yaml });
+
 /** down | restart | stop | start sobre un proyecto compose ya desplegado */
 export const composeAction = (
   project: string,

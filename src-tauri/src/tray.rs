@@ -123,12 +123,17 @@ fn on_menu_item(app: &AppHandle, id: &str) {
                         let Ok(host) = crate::commands::host(&state).await else {
                             return;
                         };
-                        let _ = match action.as_str() {
+                        let result = match action.as_str() {
                             "stop" => host.stop(&container_id).await,
                             "start" => host.start(&container_id).await,
                             "restart" => host.restart(&container_id).await,
                             _ => Ok(()),
                         };
+                        // un fallo desde el tray no puede morir en silencio:
+                        // la ventana lo muestra como toast
+                        if let Err(message) = result {
+                            let _ = app.emit("tray-error", message);
+                        }
                     });
                 }
             }

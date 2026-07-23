@@ -223,11 +223,16 @@ function HostOverview() {
   return (
     <aside className="flex w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-300 fade-in">
       <div className="flex flex-1 flex-col items-center justify-center gap-5 p-6">
-        <img
-          src={logo}
-          alt=""
-          className="animate-float size-14 rounded-2xl opacity-90"
-        />
+        <div className="relative">
+          {/* halo difuminado para que el logo no muera sobre el fondo negro */}
+          <div className="absolute -inset-8 rounded-full bg-white/[0.05] blur-2xl" />
+          <img
+            src={logo}
+            alt=""
+            draggable={false}
+            className="animate-float relative size-16 rounded-2xl shadow-xl"
+          />
+        </div>
         <div className="text-center">
           <h2 className="text-sm font-semibold">{hostName}</h2>
           <p className="mt-0.5 text-[11px] text-muted-foreground">

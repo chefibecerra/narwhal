@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import * as ipc from "@/lib/ipc";
 import { useContainers } from "@/stores/containers";
@@ -35,6 +42,7 @@ export function ComposeDialog({
   const [yaml, setYaml] = useState("");
   const [lines, setLines] = useState<string[]>([]);
   const [phase, setPhase] = useState<Phase>("edit");
+  const [saved, setSaved] = useState<string[]>([]);
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +51,20 @@ export function ComposeDialog({
     setYaml("");
     setLines([]);
     setPhase("edit");
+    void ipc
+      .composeSavedList()
+      .then(setSaved)
+      .catch(() => setSaved([]));
   }, [open]);
+
+  const loadSaved = async (name: string) => {
+    try {
+      setYaml(await ipc.composeSavedRead(name));
+      setProject(name);
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
 
   useEffect(() => {
     const el = outputRef.current;
@@ -57,6 +78,8 @@ export function ComposeDialog({
     if (!canDeploy) return;
     setPhase("running");
     setLines([]);
+    // se guarda ANTES de desplegar: aunque falle, no pierdes lo escrito
+    void ipc.composeSavedSave(project, yaml).catch(() => {});
     try {
       await ipc.composeUp(project, yaml, (chunk) =>
         setLines((prev) => [...prev, chunk.line]),
@@ -80,9 +103,24 @@ export function ComposeDialog({
           <DialogTitle>Desplegar Compose</DialogTitle>
           <DialogDescription>
             Pega tu docker-compose.yml y se ejecuta en el host activo — local o
-            remoto por SSH, da igual.
+            remoto por SSH, da igual. Al desplegar se guarda en tu biblioteca.
           </DialogDescription>
         </DialogHeader>
+
+        {saved.length > 0 && (
+          <Select onValueChange={(name) => void loadSaved(name)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Cargar un compose guardado…" />
+            </SelectTrigger>
+            <SelectContent>
+              {saved.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <div className="grid gap-3">
           <div className="grid gap-1.5">

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComposeDialog } from "@/components/ComposeDialog";
@@ -32,6 +33,14 @@ function App() {
       const s = useContainers.getState();
       s.setView("containers");
       s.select(e.payload);
+    });
+    return () => void unlisten.then((fn) => fn());
+  }, []);
+
+  // los fallos de acciones lanzadas desde el tray no mueren en silencio
+  useEffect(() => {
+    const unlisten = listen<string>("tray-error", (e) => {
+      toast.error(e.payload);
     });
     return () => void unlisten.then((fn) => fn());
   }, []);

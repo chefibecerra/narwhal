@@ -1,4 +1,5 @@
 mod commands;
+mod composes;
 mod docker;
 mod hosts;
 mod known_hosts;
@@ -87,6 +88,9 @@ pub fn run() {
             known_hosts::list_known_hosts,
             known_hosts::forget_known_host,
             tray::tray_update,
+            composes::compose_saved_list,
+            composes::compose_saved_read,
+            composes::compose_saved_save,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

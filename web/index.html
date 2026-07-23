@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Narwhal — Gestor de Docker, local y remoto</title>
+  <meta name="description" content="Gestor de Docker de escritorio. Tu máquina y tus servidores por SSH, sin agentes ni puertos abiertos. Compose, consola, logs y stats en vivo. Hecho con Rust y Tauri." />
+  <link rel="icon" type="image/png" href="narwhal.png" />
+  <meta property="og:title" content="Narwhal — Gestor de Docker" />
+  <meta property="og:description" content="El unicornio del mar que navega entre tus contenedores. Local y remoto por SSH, cero agentes." />
+  <meta property="og:image" content="narwhal.png" />
+  <style>
+    :root {
+      --bg: #0a0a0b;
+      --bg-raised: #131315;
+      --bg-chrome: #17171a;
+      --fg: #ececec;
+      --muted: #8a8a8e;
+      --faint: #5c5c60;
+      --border: rgba(255, 255, 255, 0.07);
+      --green: #34d399;
+      --amber: #fbbf24;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    code, kbd, .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(10, 10, 11, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+    .brand img { width: 26px; height: 26px; border-radius: 7px; }
+    .nav-links { display: flex; align-items: center; gap: 22px; font-size: 13px; color: var(--muted); }
+    .nav-links a:hover { color: var(--fg); }
+    .nav-cta {
+      color: var(--bg) !important; background: var(--fg);
+      padding: 6px 14px; border-radius: 8px; font-weight: 600;
+    }
+
+    header { position: relative; overflow: hidden; padding: 96px 0 72px; text-align: center; }
+    .glow {
+      position: absolute; inset: -20% -10% auto; height: 520px;
+      background:
+        radial-gradient(420px 240px at 50% 20%, rgba(52, 211, 153, 0.07), transparent 70%),
+        radial-gradient(680px 340px at 50% 0%, rgba(255, 255, 255, 0.05), transparent 70%);
+      pointer-events: none;
+    }
+    .hero-logo-wrap { position: relative; display: inline-block; margin-bottom: 28px; }
+    .hero-logo-wrap::before {
+      content: ""; position: absolute; inset: -36px; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05); filter: blur(32px);
+    }
+    .hero-logo {
+      position: relative; width: 96px; height: 96px; border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      animation: float 5s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: 5px 14px; font-size: 12px; color: var(--muted);
+      margin-bottom: 22px; background: rgba(255, 255, 255, 0.02);
+    }
+    .pulse-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+    h1 .accent { color: var(--green); }
+    .sub {
+      margin: 18px auto 0; max-width: 560px;
+      color: var(--muted); font-size: 17px;
+    }
+    .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 22px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--fg); color: var(--bg); }
+    .btn-ghost { border: 1px solid var(--border); color: var(--fg); background: rgba(255, 255, 255, 0.02); }
+    .hero-note { margin-top: 16px; font-size: 12px; color: var(--faint); }
+
+    .shot {
+      margin: 64px auto 0; max-width: 960px; padding: 0 24px;
+    }
+    .shot img {
+      width: 100%; border-radius: 14px; border: 1px solid var(--border);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+    }
+
+    section { padding: 88px 0; border-top: 1px solid var(--border); }
+    .kicker { color: var(--green); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; }
+    h2 { font-size: 30px; letter-spacing: -0.02em; margin-top: 10px; }
+    .section-sub { color: var(--muted); margin-top: 10px; max-width: 620px; }
+
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px;
+    }
+    .card .icon { font-size: 20px; }
+    .card h3 { font-size: 15px; margin: 12px 0 6px; }
+    .card p { font-size: 13px; color: var(--muted); }
+
+    .how {
+      margin-top: 44px; background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px; overflow-x: auto;
+    }
+    .how pre { font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+    .how .hl { color: var(--green); }
+
+    .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+    @media (max-width: 800px) { .dl-grid { grid-template-columns: 1fr; } }
+    .dl {
+      background: var(--bg-raised); border: 1px solid var(--border); border-radius: 14px;
+      padding: 26px; text-align: center; transition: border-color 0.15s ease;
+    }
+    .dl:hover { border-color: rgba(255, 255, 255, 0.18); }
+    .dl .os { font-size: 26px; }
+    .dl h3 { margin: 10px 0 4px; font-size: 15px; }
+    .dl p { font-size: 12px; color: var(--faint); }
+
+    footer {
+      border-top: 1px solid var(--border); padding: 36px 0;
+      font-size: 12.5px; color: var(--faint);
+      display: flex; flex-direction: column; gap: 6px; text-align: center;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap nav-inner">
+      <a class="brand" href="#">
+        <img src="narwhal.png" alt="" />
+        <span>Narwhal</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Características</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#seguridad">Seguridad</a>
+        <a href="#descargar" class="nav-cta">Descargar</a>
+      </div>
+    </div>
+  </nav>
+
+  <header>
+    <div class="glow"></div>
+    <div class="wrap">
+      <div class="hero-logo-wrap">
+        <img class="hero-logo" src="narwhal.png" alt="Narwhal" />
+      </div>
+      <div>
+        <span class="badge"><span class="pulse-dot"></span> Open source · Rust + Tauri</span>
+      </div>
+      <h1>Tus contenedores,<br /><span class="accent">donde estén</span>.</h1>
+      <p class="sub">
+        Gestor de Docker de escritorio para tu máquina y tus servidores por SSH.
+        Sin agentes, sin puertos abiertos, sin paneles web pesados.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/chefibecerra/narwhal/releases/latest">↓ Descargar para macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/chefibecerra/narwhal">Ver en GitHub</a>
+      </div>
+      <p class="hero-note">macOS · Linux · Windows — gratis y open source</p>
+    </div>
+    <div class="shot">
+      <img src="screenshot.png" alt="Narwhal mostrando contenedores agrupados por proyecto compose" onerror="this.parentElement.style.display='none'" />
+    </div>
+  </header>
+
+  <section id="features">
+    <div class="wrap">
+      <span class="kicker">Características</span>
+      <h2>Todo lo que haces a mano, a un clic.</h2>
+      <p class="section-sub">
+        La misma interfaz para el Docker de tu máquina y el de cualquier VPS.
+        Cambiar de host es un clic; todo lo demás funciona exactamente igual.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon">🖥️</div>
+          <h3>Local y remoto, sin fricción</h3>
+          <p>Tu Docker Desktop, OrbStack o Colima — y tus servidores por SSH. Importa tus hosts desde <code>~/.ssh/config</code> en dos clics.</p>
+        </div>
+        <div class="card">
+          <div class="icon">📦</div>
+          <h3>Agrupado por proyecto Compose</h3>
+          <p>Contenedores organizados como tú piensas: por proyecto, con iconos por servicio (Postgres, Redis, Nginx…) y acciones de grupo.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🚀</div>
+          <h3>Despliega un Compose pegándolo</h3>
+          <p>Pega tu <code>docker-compose.yml</code>, dale un nombre y míralo levantarse con la salida en vivo — en local o en tu VPS.</p>
+        </div>
+        <div class="card">
+          <div class="icon">⌨️</div>
+          <h3>Consola dentro del contenedor</h3>
+          <p>Terminal real (xterm) vía Docker API: bash o sh, redimensionable, con colores. Funciona idéntico contra servidores remotos.</p>
+        </div>
+        <div class="card">
+          <div class="icon">📈</div>
+          <h3>Logs y stats en vivo</h3>
+          <p>Logs en streaming con búsqueda, CPU y RAM por contenedor, y badges de healthcheck que te avisan antes de que duela.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🧹</div>
+          <h3>Imágenes, volúmenes y redes</h3>
+          <p>Las cuatro vistas completas, con limpieza guiada (<code>prune</code>) que te dice cuánto espacio liberaste. Y paleta ⌘K para todo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="como-funciona">
+    <div class="wrap">
+      <span class="kicker">Cómo funciona</span>
+      <h2>Cero agentes. Cero puertos abiertos.</h2>
+      <p class="section-sub">
+        Portainer te pide instalar un agente y exponer un puerto. Narwhal usa la conexión
+        SSH que ya tienes: reenvía el socket de Docker por un canal cifrado y habla la
+        API nativa. El servidor solo necesita tener Docker.
+      </p>
+      <div class="how">
+<pre>
+┌─ Narwhal ────────────────┐
+│  UI · logs · stats · exec │
+│      Docker API (Rust)    │
+└─────┬──────────────┬──────┘
+      │ socket local │ <span class="hl">túnel SSH (russh)</span>
+┌─────▼─────┐  ┌─────▼──────────────────┐
+│ Docker de │  │ /var/run/docker.sock    │
+│ tu máquina│  │ del servidor — <span class="hl">sin agente</span>│
+└───────────┘  └─────────────────────────┘
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="seguridad">
+    <div class="wrap">
+      <span class="kicker">Seguridad</span>
+      <h2>Tus secretos no se guardan. Punto.</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="icon">🔑</div>
+          <h3>Sin secretos en disco</h3>
+          <p>Los hosts se guardan sin contraseñas. Password o passphrase se piden al conectar y viven solo en memoria durante la sesión.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🛡️</div>
+          <h3>Verificación TOFU</h3>
+          <p>Como OpenSSH: la primera conexión registra la huella del servidor. Si algún día cambia, Narwhal corta y te avisa de posible MITM.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🦀</div>
+          <h3>Rust de punta a punta</h3>
+          <p>SSH con <code>russh</code> (Rust puro), Docker API con <code>bollard</code>, app nativa con Tauri 2. Ligera de verdad, sin Electron.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="descargar">
+    <div class="wrap">
+      <span class="kicker">Descargar</span>
+      <h2>Gratis, open source, tres plataformas.</h2>
+      <div class="dl-grid">
+        <a class="dl" href="https://github.com/chefibecerra/narwhal/releases/latest">
+          <div class="os"></div>
+          <h3>macOS</h3>
+          <p>Apple Silicon e Intel · .dmg</p>
+        </a>
+        <a class="dl" href="https://github.com/chefibecerra/narwhal/releases/latest">
+          <div class="os">🐧</div>
+          <h3>Linux</h3>
+          <p>AppImage y .deb</p>
+        </a>
+        <a class="dl" href="https://github.com/chefibecerra/narwhal/releases/latest">
+          <div class="os">🪟</div>
+          <h3>Windows</h3>
+          <p>Instalador y portable</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Narwhal — el unicornio del mar que navega entre tus contenedores.</div>
+    <div>
+      Hermano de <a href="https://github.com/chefibecerra/ratatoskr">Ratatoskr</a> ·
+      <a href="https://github.com/chefibecerra/narwhal">GitHub</a>
+    </div>
+  </footer>
+</body>
+</html>
