@@ -1,8 +1,17 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 
+import { formatBytes } from "@/lib/docker";
 import * as ipc from "@/lib/ipc";
-import type { ContainerInfo, DockerInfo, HostConfig } from "@/types";
+import type {
+  ContainerInfo,
+  DockerInfo,
+  HostConfig,
+  ImageInfo,
+  NetworkInfo,
+  View,
+  VolumeInfo,
+} from "@/types";
 
 export type ConnectionStatus = "connecting" | "connected" | "error";
 export type ContainerAction = "start" | "stop" | "restart" | "remove";
@@ -25,6 +34,13 @@ interface ContainersState {
   search: string;
   hosts: HostConfig[];
   activeHostId: string;
+  /** sección activa: contenedores, imágenes, volúmenes o redes */
+  view: View;
+  images: ImageInfo[];
+  volumes: VolumeInfo[];
+  networks: NetworkInfo[];
+  composeOpen: boolean;
+  paletteOpen: boolean;
   loadHosts: () => Promise<void>;
   saveHost: (host: HostConfig) => Promise<void>;
   deleteHost: (id: string) => Promise<void>;
@@ -40,6 +56,16 @@ interface ContainersState {
   setSearch: (search: string) => void;
   openExec: (id: string) => void;
   closeExec: () => void;
+  setView: (view: View) => void;
+  setComposeOpen: (open: boolean) => void;
+  setPaletteOpen: (open: boolean) => void;
+  removeResource: (view: View, id: string) => Promise<void>;
+  /** limpia recursos sin uso de la vista actual */
+  prune: () => Promise<void>;
+  composeAction: (
+    project: string,
+    action: "down" | "restart" | "stop" | "start",
+  ) => Promise<void>;
 }
 
 export const useContainers = create<ContainersState>((set, get) => ({
@@ -53,6 +79,12 @@ export const useContainers = create<ContainersState>((set, get) => ({
   search: "",
   hosts: [],
   activeHostId: LOCAL_HOST,
+  view: "containers",
+  images: [],
+  volumes: [],
+  networks: [],
+  composeOpen: false,
+  paletteOpen: false,
 
   loadHosts: async () => {
     try {
@@ -90,6 +122,9 @@ export const useContainers = create<ContainersState>((set, get) => ({
       selectedId: null,
       execId: null,
       containers: [],
+      images: [],
+      volumes: [],
+      networks: [],
       docker: null,
     });
     try {
@@ -113,6 +148,10 @@ export const useContainers = create<ContainersState>((set, get) => ({
   refresh: async () => {
     try {
       set({ containers: await ipc.listContainers() });
+      const view = get().view;
+      if (view === "images") set({ images: await ipc.listImages() });
+      if (view === "volumes") set({ volumes: await ipc.listVolumes() });
+      if (view === "networks") set({ networks: await ipc.listNetworks() });
     } catch (e) {
       set({ status: "error", error: String(e) });
     }
@@ -144,4 +183,49 @@ export const useContainers = create<ContainersState>((set, get) => ({
   setSearch: (search) => set({ search }),
   openExec: (id) => set({ execId: id }),
   closeExec: () => set({ execId: null }),
+  setView: (view) => {
+    set({ view, search: "" });
+    void get().refresh();
+  },
+  setComposeOpen: (composeOpen) => set({ composeOpen }),
+  setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+
+  removeResource: async (view, id) => {
+    try {
+      if (view === "images") await ipc.removeImage(id);
+      if (view === "volumes") await ipc.removeVolume(id);
+      if (view === "networks") await ipc.removeNetwork(id);
+      await get().refresh();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  },
+
+  prune: async () => {
+    const view = get().view;
+    try {
+      if (view === "images") {
+        toast.success(`Liberado ${formatBytes(await ipc.pruneImages())}`);
+      }
+      if (view === "volumes") {
+        toast.success(`Liberado ${formatBytes(await ipc.pruneVolumes())}`);
+      }
+      if (view === "networks") {
+        toast.success(`${await ipc.pruneNetworks()} redes eliminadas`);
+      }
+      await get().refresh();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  },
+
+  composeAction: async (project, action) => {
+    try {
+      await ipc.composeAction(project, action, () => {});
+      toast.success(`${project}: ${action} completado`);
+    } catch (e) {
+      toast.error(String(e));
+    }
+    await get().refresh();
+  },
 }));

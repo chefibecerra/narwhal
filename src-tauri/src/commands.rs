@@ -7,7 +7,8 @@ use tokio::sync::{mpsc, Mutex};
 
 use crate::docker::host::BollardHost;
 use crate::docker::{
-    ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, LogChunk,
+    ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, ImageInfo, LogChunk,
+    NetworkInfo, VolumeInfo,
 };
 
 #[derive(Default)]
@@ -263,4 +264,86 @@ pub async fn docker_compose_up(
             }),
         )
         .await
+}
+
+#[tauri::command]
+pub async fn docker_compose_action(
+    state: State<'_, DockerState>,
+    project: String,
+    action: String,
+    on_output: Channel<LogChunk>,
+) -> Result<(), String> {
+    if !matches!(action.as_str(), "down" | "restart" | "stop" | "start") {
+        return Err(format!("acción no permitida: {action}"));
+    }
+    host(&state)
+        .await?
+        .compose_action(
+            &project,
+            &action,
+            Box::new(move |chunk| {
+                let _ = on_output.send(chunk);
+            }),
+        )
+        .await
+}
+
+#[tauri::command]
+pub async fn docker_list_images(
+    state: State<'_, DockerState>,
+) -> Result<Vec<ImageInfo>, String> {
+    host(&state).await?.list_images().await
+}
+
+#[tauri::command]
+pub async fn docker_remove_image(
+    state: State<'_, DockerState>,
+    id: String,
+) -> Result<(), String> {
+    host(&state).await?.remove_image(&id).await
+}
+
+#[tauri::command]
+pub async fn docker_prune_images(state: State<'_, DockerState>) -> Result<i64, String> {
+    host(&state).await?.prune_images().await
+}
+
+#[tauri::command]
+pub async fn docker_list_volumes(
+    state: State<'_, DockerState>,
+) -> Result<Vec<VolumeInfo>, String> {
+    host(&state).await?.list_volumes().await
+}
+
+#[tauri::command]
+pub async fn docker_remove_volume(
+    state: State<'_, DockerState>,
+    name: String,
+) -> Result<(), String> {
+    host(&state).await?.remove_volume(&name).await
+}
+
+#[tauri::command]
+pub async fn docker_prune_volumes(state: State<'_, DockerState>) -> Result<i64, String> {
+    host(&state).await?.prune_volumes().await
+}
+
+#[tauri::command]
+pub async fn docker_list_networks(
+    state: State<'_, DockerState>,
+) -> Result<Vec<NetworkInfo>, String> {
+    host(&state).await?.list_networks().await
+}
+
+#[tauri::command]
+pub async fn docker_remove_network(
+    state: State<'_, DockerState>,
+    id: String,
+) -> Result<(), String> {
+    host(&state).await?.remove_network(&id).await
+}
+
+#[tauri::command]
+pub async fn docker_prune_networks(state: State<'_, DockerState>) -> Result<i64, String> {
+    host(&state).await?.prune_networks().await
 }

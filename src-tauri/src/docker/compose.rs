@@ -31,6 +31,17 @@ fn compose_script(file: &str, project: &str) -> String {
     )
 }
 
+/// Acción sobre un proyecto ya desplegado; compose v2 lo resuelve por labels.
+fn action_script(project: &str, action: &str) -> String {
+    format!(
+        "if docker compose version >/dev/null 2>&1; then \
+           docker compose -p '{project}' {action} 2>&1; \
+         else \
+           docker-compose -p '{project}' {action} 2>&1; \
+         fi"
+    )
+}
+
 fn emit_lines(on_output: &LogSink, raw: &[u8]) {
     for line in String::from_utf8_lossy(raw).lines() {
         on_output(LogChunk {
@@ -43,8 +54,23 @@ fn emit_lines(on_output: &LogSink, raw: &[u8]) {
 pub async fn up_local(project: &str, yaml: &str, on_output: &LogSink) -> Result<()> {
     let path = std::env::temp_dir().join(format!("narwhal-compose-{project}.yml"));
     std::fs::write(&path, yaml).map_err(|e| e.to_string())?;
+    run_local(&compose_script(&path.display().to_string(), project), on_output).await
+}
 
-    let script = compose_script(&path.display().to_string(), project);
+pub async fn action_local(project: &str, action: &str, on_output: &LogSink) -> Result<()> {
+    run_local(&action_script(project, action), on_output).await
+}
+
+pub async fn action_remote(
+    session: &Arc<client::Handle<ClientHandler>>,
+    project: &str,
+    action: &str,
+    on_output: &LogSink,
+) -> Result<()> {
+    run_remote(session, &action_script(project, action), on_output).await
+}
+
+async fn run_local(script: &str, on_output: &LogSink) -> Result<()> {
     let mut child = tokio::process::Command::new("sh")
         .arg("-c")
         .arg(&script)
@@ -112,12 +138,20 @@ pub async fn up_remote(
     }
 
     // 2) ejecutarlo streameando la salida
+    run_remote(session, &compose_script(&remote_path, project), on_output).await
+}
+
+async fn run_remote(
+    session: &Arc<client::Handle<ClientHandler>>,
+    script: &str,
+    on_output: &LogSink,
+) -> Result<()> {
     let mut channel = session
         .channel_open_session()
         .await
         .map_err(|e| e.to_string())?;
     channel
-        .exec(true, compose_script(&remote_path, project))
+        .exec(true, script)
         .await
         .map_err(|e| e.to_string())?;
 

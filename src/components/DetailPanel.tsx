@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { Play, RotateCw, Square, Terminal, Trash2 } from "lucide-react";
 
 import {
@@ -16,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogsView } from "@/components/LogsView";
+import { PortChips } from "@/components/PortChips";
 import { formatBytes } from "@/lib/docker";
 import * as ipc from "@/lib/ipc";
 import { detectService, ServiceGlyph } from "@/lib/services";
@@ -51,15 +51,6 @@ export function DetailPanel() {
 
   const c = container;
   const running = c.state === "running";
-
-  // docker repite cada puerto por IP (ipv4/ipv6): deduplicar por etiqueta
-  const ports = new Map<string, number | null>();
-  for (const p of c.ports) {
-    const label = p.publicPort
-      ? `${p.publicPort}→${p.privatePort}`
-      : `${p.privatePort}/${p.protocol}`;
-    if (!ports.has(label)) ports.set(label, p.publicPort);
-  }
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-card/20">
@@ -186,31 +177,13 @@ export function DetailPanel() {
                 timeStyle: "short",
               })}
             />
-            {ports.size > 0 && (
+            {c.ports.length > 0 && (
               <div>
-                <dt className="mb-1 text-muted-foreground">Puertos</dt>
+                <dt className="mb-1 text-muted-foreground">
+                  Puertos (host → contenedor)
+                </dt>
                 <dd className="flex flex-wrap gap-1">
-                  {[...ports.entries()].map(([label, publicPort]) =>
-                    publicPort ? (
-                      <button
-                        key={label}
-                        onClick={() =>
-                          void openUrl(`http://localhost:${publicPort}`)
-                        }
-                        title={`Abrir localhost:${publicPort}`}
-                        className="rounded-md border border-border bg-secondary/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-emerald-400/40 hover:text-foreground"
-                      >
-                        {label}
-                      </button>
-                    ) : (
-                      <span
-                        key={label}
-                        className="rounded-md bg-secondary/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/70"
-                      >
-                        {label}
-                      </span>
-                    ),
-                  )}
+                  <PortChips ports={c.ports} />
                 </dd>
               </div>
             )}

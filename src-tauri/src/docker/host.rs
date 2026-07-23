@@ -8,8 +8,8 @@ use futures_util::StreamExt;
 
 use super::tunnel::SocketTunnel;
 use super::{
-    BytesSink, ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, LogChunk,
-    LogSink, PortMapping, Result, StatsSink,
+    BytesSink, ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, ImageInfo,
+    LogChunk, LogSink, NetworkInfo, PortMapping, Result, StatsSink, VolumeInfo,
 };
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
@@ -290,5 +290,141 @@ impl DockerHost for BollardHost {
             }
             None => super::compose::up_local(&project, yaml, &on_output).await,
         }
+    }
+
+    async fn compose_action(
+        &self,
+        project: &str,
+        action: &str,
+        on_output: LogSink,
+    ) -> Result<()> {
+        let project = super::compose::sanitize_project(project)?;
+        match &self.tunnel {
+            Some(tunnel) => {
+                super::compose::action_remote(&tunnel.session(), &project, action, &on_output)
+                    .await
+            }
+            None => super::compose::action_local(&project, action, &on_output).await,
+        }
+    }
+
+    async fn list_images(&self) -> Result<Vec<ImageInfo>> {
+        use bollard::image::ListImagesOptions;
+        let list = self
+            .docker
+            .list_images(None::<ListImagesOptions<String>>)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(list
+            .into_iter()
+            .map(|i| ImageInfo {
+                id: i.id,
+                tags: i.repo_tags,
+                size: i.size,
+                created: i.created,
+            })
+            .collect())
+    }
+
+    async fn remove_image(&self, id: &str) -> Result<()> {
+        use bollard::image::RemoveImageOptions;
+        self.docker
+            .remove_image(
+                id,
+                Some(RemoveImageOptions {
+                    force: false,
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    async fn prune_images(&self) -> Result<i64> {
+        use bollard::image::PruneImagesOptions;
+        let report = self
+            .docker
+            .prune_images(None::<PruneImagesOptions<String>>)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(report.space_reclaimed.unwrap_or(0))
+    }
+
+    async fn list_volumes(&self) -> Result<Vec<VolumeInfo>> {
+        use bollard::volume::ListVolumesOptions;
+        let response = self
+            .docker
+            .list_volumes(None::<ListVolumesOptions<String>>)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(response
+            .volumes
+            .unwrap_or_default()
+            .into_iter()
+            .map(|v| VolumeInfo {
+                name: v.name,
+                driver: v.driver,
+                mountpoint: v.mountpoint,
+                created_at: v.created_at.map(|d| d.to_string()),
+            })
+            .collect())
+    }
+
+    async fn remove_volume(&self, name: &str) -> Result<()> {
+        self.docker
+            .remove_volume(name, None)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn prune_volumes(&self) -> Result<i64> {
+        use bollard::volume::PruneVolumesOptions;
+        let report = self
+            .docker
+            .prune_volumes(None::<PruneVolumesOptions<String>>)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(report.space_reclaimed.unwrap_or(0))
+    }
+
+    async fn list_networks(&self) -> Result<Vec<NetworkInfo>> {
+        use bollard::network::ListNetworksOptions;
+        let list = self
+            .docker
+            .list_networks(None::<ListNetworksOptions<String>>)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(list
+            .into_iter()
+            .map(|n| {
+                let name = n.name.unwrap_or_default();
+                NetworkInfo {
+                    id: n.id.unwrap_or_default(),
+                    builtin: matches!(name.as_str(), "bridge" | "host" | "none"),
+                    name,
+                    driver: n.driver.unwrap_or_default(),
+                    scope: n.scope.unwrap_or_default(),
+                }
+            })
+            .collect())
+    }
+
+    async fn remove_network(&self, id: &str) -> Result<()> {
+        self.docker
+            .remove_network(id)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn prune_networks(&self) -> Result<i64> {
+        use bollard::network::PruneNetworksOptions;
+        let report = self
+            .docker
+            .prune_networks(None::<PruneNetworksOptions<String>>)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(report.networks_deleted.unwrap_or_default().len() as i64)
     }
 }

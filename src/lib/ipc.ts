@@ -5,8 +5,11 @@ import type {
   ContainerStats,
   DockerInfo,
   HostConfig,
+  ImageInfo,
   LogChunk,
+  NetworkInfo,
   SshConfigHost,
+  VolumeInfo,
 } from "@/types";
 
 export const connectLocal = () => invoke<DockerInfo>("docker_connect_local");
@@ -90,6 +93,36 @@ export const execResize = (sessionId: string, cols: number, rows: number) =>
 
 export const execStop = (sessionId: string) =>
   invoke<void>("docker_exec_stop", { sessionId });
+
+export const listImages = () => invoke<ImageInfo[]>("docker_list_images");
+export const removeImage = (id: string) =>
+  invoke<void>("docker_remove_image", { id });
+export const pruneImages = () => invoke<number>("docker_prune_images");
+
+export const listVolumes = () => invoke<VolumeInfo[]>("docker_list_volumes");
+export const removeVolume = (name: string) =>
+  invoke<void>("docker_remove_volume", { name });
+export const pruneVolumes = () => invoke<number>("docker_prune_volumes");
+
+export const listNetworks = () => invoke<NetworkInfo[]>("docker_list_networks");
+export const removeNetwork = (id: string) =>
+  invoke<void>("docker_remove_network", { id });
+export const pruneNetworks = () => invoke<number>("docker_prune_networks");
+
+/** down | restart | stop | start sobre un proyecto compose ya desplegado */
+export const composeAction = (
+  project: string,
+  action: "down" | "restart" | "stop" | "start",
+  onOutput: (chunk: LogChunk) => void,
+) => {
+  const channel = new Channel<LogChunk>();
+  channel.onmessage = onOutput;
+  return invoke<void>("docker_compose_action", {
+    project,
+    action,
+    onOutput: channel,
+  });
+};
 
 /** resuelve al terminar `docker compose up -d`; la salida llega por el canal */
 export const composeUp = (

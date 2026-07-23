@@ -54,6 +54,35 @@ pub struct ContainerStats {
     pub memory_limit: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageInfo {
+    pub id: String,
+    pub tags: Vec<String>,
+    pub size: i64,
+    pub created: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeInfo {
+    pub name: String,
+    pub driver: String,
+    pub mountpoint: String,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkInfo {
+    pub id: String,
+    pub name: String,
+    pub driver: String,
+    pub scope: String,
+    /// bridge/host/none no se pueden eliminar
+    pub builtin: bool,
+}
+
 pub type Result<T> = std::result::Result<T, String>;
 
 pub type LogSink = Box<dyn Fn(LogChunk) + Send + Sync>;
@@ -97,4 +126,21 @@ pub trait DockerHost: Send + Sync {
     /// Compose es una herramienta de cliente, no parte de la API: local usa el
     /// CLI de la máquina; remoto sube el YAML por SSH y lo ejecuta allí.
     async fn compose_up(&self, project: &str, yaml: &str, on_output: LogSink) -> Result<()>;
+    /// `docker compose -p <proyecto> <down|restart|...>` — v2 resuelve el
+    /// proyecto por labels, sin necesitar el archivo.
+    async fn compose_action(&self, project: &str, action: &str, on_output: LogSink)
+        -> Result<()>;
+
+    async fn list_images(&self) -> Result<Vec<ImageInfo>>;
+    async fn remove_image(&self, id: &str) -> Result<()>;
+    /// bytes liberados
+    async fn prune_images(&self) -> Result<i64>;
+    async fn list_volumes(&self) -> Result<Vec<VolumeInfo>>;
+    async fn remove_volume(&self, name: &str) -> Result<()>;
+    /// bytes liberados
+    async fn prune_volumes(&self) -> Result<i64>;
+    async fn list_networks(&self) -> Result<Vec<NetworkInfo>>;
+    async fn remove_network(&self, id: &str) -> Result<()>;
+    /// redes eliminadas
+    async fn prune_networks(&self) -> Result<i64>;
 }

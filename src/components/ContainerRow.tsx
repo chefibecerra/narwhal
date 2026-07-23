@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { PortChips } from "@/components/PortChips";
 import { Button } from "@/components/ui/button";
 import { healthOf } from "@/lib/docker";
 import { ServiceGlyph } from "@/lib/services";
@@ -71,8 +72,11 @@ export function ContainerRow({ container: c }: { container: ContainerInfo }) {
             </span>
           )}
         </span>
-        <span className="block truncate text-[11px] text-muted-foreground/80">
-          {c.image}
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-[11px] text-muted-foreground/80">
+            {c.image}
+          </span>
+          <PortChips ports={c.ports} />
         </span>
       </div>
       <div

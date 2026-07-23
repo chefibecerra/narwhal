@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Boxes, ChevronRight, Container, Square, Trash2 } from "lucide-react";
+import {
+  Boxes,
+  ChevronRight,
+  Container,
+  RotateCw,
+  Square,
+  Trash2,
+} from "lucide-react";
 
 import { ContainerRow } from "@/components/ContainerRow";
 import {
@@ -107,6 +114,7 @@ export function ContainerList() {
             title={name}
             icon={<Boxes className="size-4" />}
             items={sortContainers(items)}
+            project
             // con búsqueda activa se expande todo para ver los resultados
             open={Boolean(query) || !collapsed.has(name)}
             onToggle={() => toggle(name)}
@@ -131,21 +139,28 @@ function Group({
   items,
   open,
   onToggle,
+  project = false,
 }: {
   title: string;
   icon: React.ReactNode;
   items: ContainerInfo[];
   open: boolean;
   onToggle: () => void;
+  /** grupo compose real: las acciones van vía `docker compose -p` */
+  project?: boolean;
 }) {
   const run = useContainers((s) => s.run);
+  const composeAction = useContainers((s) => s.composeAction);
   const running = items.filter((c) => c.state === "running");
 
   const stopAll = async () => {
+    if (project) return composeAction(title, "stop");
     for (const c of running) await run(c.id, "stop");
   };
 
   const removeAll = async () => {
+    // down también limpia la red del proyecto, no solo los contenedores
+    if (project) return composeAction(title, "down");
     for (const c of items) await run(c.id, "remove");
   };
 
@@ -168,6 +183,17 @@ function Group({
           </span>
         </button>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/header:opacity-100">
+          {project && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => void composeAction(title, "restart")}
+              aria-label={`Reiniciar ${title}`}
+            >
+              <RotateCw className="size-3.5" />
+            </Button>
+          )}
           {running.length > 0 && (
             <Button
               variant="ghost"
@@ -194,11 +220,14 @@ function Group({
               <AlertDialogHeader>
                 <AlertDialogTitle>Eliminar {title}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Se eliminarán los {items.length} contenedores del grupo
-                  {running.length > 0
-                    ? ` (${running.length} en ejecución, se forzará el borrado)`
-                    : ""}
-                  . Esta acción no se puede deshacer.
+                  {project
+                    ? `docker compose down: se detendrán y eliminarán los ${items.length} contenedores del proyecto y su red.`
+                    : `Se eliminarán los ${items.length} contenedores del grupo${
+                        running.length > 0
+                          ? ` (${running.length} en ejecución, se forzará el borrado)`
+                          : ""
+                      }.`}{" "}
+                  Esta acción no se puede deshacer.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
