@@ -143,14 +143,15 @@ fn on_menu_item(app: &AppHandle, id: &str) {
 
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app, &[])?;
-    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
+    // template: solo silueta + alfa; macOS la tiñe según barra clara u oscura
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
+    TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| on_menu_item(app, event.id().as_ref()));
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
-    builder.build(app)?;
+        .icon(icon)
+        .icon_as_template(true)
+        .on_menu_event(|app, event| on_menu_item(app, event.id().as_ref()))
+        .build(app)?;
     Ok(())
 }
 
