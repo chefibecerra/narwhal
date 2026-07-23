@@ -22,10 +22,10 @@ export function TitleBar() {
       data-tauri-drag-region
       className="relative h-12 shrink-0 border-b border-border"
     >
-      {/* posición absoluta calzada con los semáforos nativos (y:17, 12px de
-          alto → centro 23px); misma geometría que el mockup de la web:
-          hueco de 14px, padding 5x12, radio 7 */}
-      <div className="pointer-events-none absolute left-[82px] top-[12px] flex max-w-[50%] items-center gap-[7px] rounded-[7px] bg-secondary px-3 py-[5px]">
+      {/* posición absoluta calzada con los semáforos nativos: su centro real
+          queda a ~18px (medido en pantalla, no donde dice la doc); misma
+          geometría que el mockup de la web: hueco 14px, padding 5x12, radio 7 */}
+      <div className="pointer-events-none absolute left-[82px] top-[8px] flex max-w-[50%] items-center gap-[7px] rounded-[7px] bg-secondary px-3 py-[5px]">
         <span className={cn("size-1.5 shrink-0 rounded-full", statusDot)} />
         <span className="truncate text-xs font-medium leading-none">
           {activeName}
