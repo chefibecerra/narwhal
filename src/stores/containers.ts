@@ -19,6 +19,8 @@ interface ContainersState {
   busy: Record<string, ContainerAction>;
   /** contenedor seleccionado, mostrado en el panel de detalle */
   selectedId: string | null;
+  /** contenedor con consola abierta en el cajón inferior */
+  execId: string | null;
   /** filtro de búsqueda de la lista */
   search: string;
   hosts: HostConfig[];
@@ -36,6 +38,8 @@ interface ContainersState {
   run: (id: string, action: ContainerAction) => Promise<void>;
   select: (id: string | null) => void;
   setSearch: (search: string) => void;
+  openExec: (id: string) => void;
+  closeExec: () => void;
 }
 
 export const useContainers = create<ContainersState>((set, get) => ({
@@ -45,6 +49,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   containers: [],
   busy: {},
   selectedId: null,
+  execId: null,
   search: "",
   hosts: [],
   activeHostId: LOCAL_HOST,
@@ -83,6 +88,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
       error: null,
       activeHostId: hostId,
       selectedId: null,
+      execId: null,
       containers: [],
       docker: null,
     });
@@ -121,6 +127,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
       if (action === "remove") {
         await ipc.removeContainer(id, true);
         if (get().selectedId === id) set({ selectedId: null });
+        if (get().execId === id) set({ execId: null });
       }
       await get().refresh();
     } catch (e) {
@@ -135,4 +142,6 @@ export const useContainers = create<ContainersState>((set, get) => ({
 
   select: (id) => set({ selectedId: id }),
   setSearch: (search) => set({ search }),
+  openExec: (id) => set({ execId: id }),
+  closeExec: () => set({ execId: null }),
 }));

@@ -63,6 +63,34 @@ export const startStats = (
 export const stopStats = (id: string) =>
   invoke<void>("docker_stats_stop", { id });
 
+/** shell interactiva vía Docker API exec; la salida llega en crudo (bytes) */
+export const execStart = (
+  sessionId: string,
+  containerId: string,
+  cols: number,
+  rows: number,
+  onData: (data: ArrayBuffer) => void,
+) => {
+  const channel = new Channel<ArrayBuffer>();
+  channel.onmessage = onData;
+  return invoke<void>("docker_exec_start", {
+    sessionId,
+    containerId,
+    cols,
+    rows,
+    onData: channel,
+  });
+};
+
+export const execWrite = (sessionId: string, data: string) =>
+  invoke<void>("docker_exec_write", { sessionId, data });
+
+export const execResize = (sessionId: string, cols: number, rows: number) =>
+  invoke<void>("docker_exec_resize", { sessionId, cols, rows });
+
+export const execStop = (sessionId: string) =>
+  invoke<void>("docker_exec_stop", { sessionId });
+
 /** resuelve al terminar `docker compose up -d`; la salida llega por el canal */
 export const composeUp = (
   project: string,

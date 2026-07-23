@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Play, RotateCw, Square, Trash2 } from "lucide-react";
+import { Play, RotateCw, Square, Terminal, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -34,6 +34,7 @@ export function DetailPanel() {
     s.containers.find((c) => c.id === s.selectedId),
   );
   const run = useContainers((s) => s.run);
+  const openExec = useContainers((s) => s.openExec);
   const busy = useContainers((s) =>
     container ? Boolean(s.busy[container.id]) : false,
   );
@@ -101,6 +102,15 @@ export function DetailPanel() {
               >
                 <RotateCw className={cn("size-3", busy && "animate-spin")} />{" "}
                 Reiniciar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => openExec(c.id)}
+                aria-label="Consola"
+              >
+                <Terminal className="size-3" />
               </Button>
             </>
           ) : (

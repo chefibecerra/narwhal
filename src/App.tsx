@@ -4,6 +4,7 @@ import { ContainerList } from "@/components/ContainerList";
 import { DetailPanel } from "@/components/DetailPanel";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
+import { TerminalDrawer } from "@/components/TerminalDrawer";
 import { Toaster } from "@/components/ui/sonner";
 import { LOCAL_HOST, useContainers } from "@/stores/containers";
 
@@ -33,6 +34,7 @@ function App() {
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
           <ContainerList />
         </div>
+        <TerminalDrawer />
       </main>
       <DetailPanel />
       <Toaster />

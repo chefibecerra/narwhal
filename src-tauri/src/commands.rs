@@ -1,17 +1,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tauri::ipc::Channel;
-use tauri::{AppHandle, State};
-use tokio::sync::Mutex;
+use tauri::ipc::{Channel, InvokeResponseBody};
+use tauri::{AppHandle, Emitter, Manager, State};
+use tokio::sync::{mpsc, Mutex};
 
 use crate::docker::host::BollardHost;
-use crate::docker::{ContainerInfo, ContainerStats, DockerHost, DockerInfo, LogChunk};
+use crate::docker::{
+    ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, LogChunk,
+};
 
 #[derive(Default)]
 pub struct DockerState {
     host: Mutex<Option<Arc<dyn DockerHost>>>,
     log_streams: Mutex<HashMap<String, tauri::async_runtime::JoinHandle<()>>>,
+    exec_sessions: Mutex<HashMap<String, mpsc::Sender<ExecOp>>>,
 }
 
 async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
@@ -23,12 +26,14 @@ async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
         .ok_or_else(|| "Sin conexión con Docker".to_string())
 }
 
-/// Al cambiar de host los streams de logs del anterior quedan huérfanos:
-/// se cortan todos antes de instalar la conexión nueva.
+/// Al cambiar de host los streams (logs, stats) y consolas del anterior
+/// quedan huérfanos: se cortan todos antes de instalar la conexión nueva.
 async fn install_host(state: &DockerState, new_host: Arc<dyn DockerHost>) {
     for (_, task) in state.log_streams.lock().await.drain() {
         task.abort();
     }
+    // soltar los senders termina los bucles de exec_shell
+    state.exec_sessions.lock().await.clear();
     *state.host.lock().await = Some(new_host);
 }
 
@@ -161,6 +166,83 @@ pub async fn docker_stats_stop(state: State<'_, DockerState>, id: String) -> Res
     if let Some(task) = state.log_streams.lock().await.remove(&format!("stats:{id}")) {
         task.abort();
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn docker_exec_start(
+    app: AppHandle,
+    state: State<'_, DockerState>,
+    session_id: String,
+    container_id: String,
+    cols: u16,
+    rows: u16,
+    on_data: Channel<InvokeResponseBody>,
+) -> Result<(), String> {
+    let h = host(&state).await?;
+    let (tx, rx) = mpsc::channel::<ExecOp>(64);
+    state
+        .exec_sessions
+        .lock()
+        .await
+        .insert(session_id.clone(), tx);
+
+    tauri::async_runtime::spawn(async move {
+        let _ = h
+            .exec_shell(
+                &container_id,
+                cols,
+                rows,
+                Box::new(move |bytes| {
+                    let _ = on_data.send(InvokeResponseBody::Raw(bytes));
+                }),
+                rx,
+            )
+            .await;
+        app.state::<DockerState>()
+            .exec_sessions
+            .lock()
+            .await
+            .remove(&session_id);
+        let _ = app.emit("exec-closed", session_id);
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn docker_exec_write(
+    state: State<'_, DockerState>,
+    session_id: String,
+    data: String,
+) -> Result<(), String> {
+    let sessions = state.exec_sessions.lock().await;
+    let tx = sessions.get(&session_id).ok_or("sesión no encontrada")?;
+    tx.send(ExecOp::Data(data.into_bytes()))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn docker_exec_resize(
+    state: State<'_, DockerState>,
+    session_id: String,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    let sessions = state.exec_sessions.lock().await;
+    let tx = sessions.get(&session_id).ok_or("sesión no encontrada")?;
+    tx.send(ExecOp::Resize(cols, rows))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn docker_exec_stop(
+    state: State<'_, DockerState>,
+    session_id: String,
+) -> Result<(), String> {
+    // soltar el sender hace terminar el bucle de exec_shell
+    state.exec_sessions.lock().await.remove(&session_id);
     Ok(())
 }
 

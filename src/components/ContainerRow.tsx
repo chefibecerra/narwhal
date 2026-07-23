@@ -1,4 +1,4 @@
-import { Play, Square, Trash2 } from "lucide-react";
+import { Play, RotateCw, Square, Terminal, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -27,6 +27,7 @@ const DOT_BY_STATE: Record<string, string> = {
 export function ContainerRow({ container: c }: { container: ContainerInfo }) {
   const run = useContainers((s) => s.run);
   const select = useContainers((s) => s.select);
+  const openExec = useContainers((s) => s.openExec);
   const selected = useContainers((s) => s.selectedId === c.id);
   const busy = useContainers((s) => Boolean(s.busy[c.id]));
   const running = c.state === "running";
@@ -79,16 +80,37 @@ export function ContainerRow({ container: c }: { container: ContainerInfo }) {
         onClick={(e) => e.stopPropagation()}
       >
         {running ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            disabled={busy}
-            onClick={() => void run(c.id, "stop")}
-            aria-label="Detener"
-          >
-            <Square className="size-3.5" />
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => openExec(c.id)}
+              aria-label="Consola"
+            >
+              <Terminal className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={busy}
+              onClick={() => void run(c.id, "restart")}
+              aria-label="Reiniciar"
+            >
+              <RotateCw className={cn("size-3.5", busy && "animate-spin")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={busy}
+              onClick={() => void run(c.id, "stop")}
+              aria-label="Detener"
+            >
+              <Square className="size-3.5" />
+            </Button>
+          </>
         ) : (
           <Button
             variant="ghost"

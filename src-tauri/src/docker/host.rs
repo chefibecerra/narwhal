@@ -8,8 +8,8 @@ use futures_util::StreamExt;
 
 use super::tunnel::SocketTunnel;
 use super::{
-    ContainerInfo, ContainerStats, DockerHost, DockerInfo, LogChunk, LogSink, PortMapping,
-    Result, StatsSink,
+    BytesSink, ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, LogChunk,
+    LogSink, PortMapping, Result, StatsSink,
 };
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
@@ -195,6 +195,89 @@ impl DockerHost for BollardHost {
                 memory_used: s.memory_stats.usage.unwrap_or(0),
                 memory_limit: s.memory_stats.limit.unwrap_or(0),
             });
+        }
+        Ok(())
+    }
+
+    async fn exec_shell(
+        &self,
+        id: &str,
+        cols: u16,
+        rows: u16,
+        on_data: BytesSink,
+        mut ops: tokio::sync::mpsc::Receiver<ExecOp>,
+    ) -> Result<()> {
+        use bollard::exec::{CreateExecOptions, ResizeExecOptions, StartExecResults};
+        use tokio::io::AsyncWriteExt;
+
+        let exec = self
+            .docker
+            .create_exec(
+                id,
+                CreateExecOptions::<String> {
+                    attach_stdin: Some(true),
+                    attach_stdout: Some(true),
+                    attach_stderr: Some(true),
+                    tty: Some(true),
+                    env: Some(vec!["TERM=xterm-256color".into()]),
+                    cmd: Some(vec![
+                        "/bin/sh".into(),
+                        "-lc".into(),
+                        "command -v bash >/dev/null 2>&1 && exec bash || exec sh".into(),
+                    ]),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let started = self
+            .docker
+            .start_exec(&exec.id, None)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if let StartExecResults::Attached {
+            mut output,
+            mut input,
+        } = started
+        {
+            let _ = self
+                .docker
+                .resize_exec(
+                    &exec.id,
+                    ResizeExecOptions {
+                        height: rows,
+                        width: cols,
+                    },
+                )
+                .await;
+
+            loop {
+                tokio::select! {
+                    chunk = output.next() => match chunk {
+                        Some(Ok(out)) => on_data(out.into_bytes().to_vec()),
+                        _ => break,
+                    },
+                    op = ops.recv() => match op {
+                        Some(ExecOp::Data(bytes)) => {
+                            if input.write_all(&bytes).await.is_err() {
+                                break;
+                            }
+                        }
+                        Some(ExecOp::Resize(c, r)) => {
+                            let _ = self
+                                .docker
+                                .resize_exec(
+                                    &exec.id,
+                                    ResizeExecOptions { height: r, width: c },
+                                )
+                                .await;
+                        }
+                        None => break,
+                    },
+                }
+            }
         }
         Ok(())
     }

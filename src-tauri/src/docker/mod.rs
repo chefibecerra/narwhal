@@ -60,6 +60,14 @@ pub type LogSink = Box<dyn Fn(LogChunk) + Send + Sync>;
 
 pub type StatsSink = Box<dyn Fn(ContainerStats) + Send + Sync>;
 
+pub type BytesSink = Box<dyn Fn(Vec<u8>) + Send + Sync>;
+
+/// Entrada del terminal interactivo; cerrar el sender termina la sesión.
+pub enum ExecOp {
+    Data(Vec<u8>),
+    Resize(u16, u16),
+}
+
 /// La UI habla contra este trait y no sabe de dónde viene Docker:
 /// el socket local o el mismo socket tunelizado por SSH.
 #[async_trait]
@@ -75,6 +83,16 @@ pub trait DockerHost: Send + Sync {
     async fn logs(&self, id: &str, tail: u32, on_chunk: LogSink) -> Result<()>;
     /// Stream de CPU/RAM del contenedor (~1 muestra/s), mismo contrato que `logs`.
     async fn stats(&self, id: &str, on_stats: StatsSink) -> Result<()>;
+    /// Shell interactiva dentro del contenedor vía Docker API exec (bash si
+    /// existe, sh si no). Termina cuando el proceso sale o se cierra `ops`.
+    async fn exec_shell(
+        &self,
+        id: &str,
+        cols: u16,
+        rows: u16,
+        on_data: BytesSink,
+        ops: tokio::sync::mpsc::Receiver<ExecOp>,
+    ) -> Result<()>;
     /// `docker compose up -d` con el YAML dado, streameando la salida.
     /// Compose es una herramienta de cliente, no parte de la API: local usa el
     /// CLI de la máquina; remoto sube el YAML por SSH y lo ejecuta allí.
