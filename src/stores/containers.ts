@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { create } from "zustand";
 
-import { formatBytes } from "@/lib/docker";
+import { formatBytes, healthOf } from "@/lib/docker";
 import * as ipc from "@/lib/ipc";
 import type {
   ContainerInfo,
@@ -147,7 +147,19 @@ export const useContainers = create<ContainersState>((set, get) => ({
 
   refresh: async () => {
     try {
-      set({ containers: await ipc.listContainers() });
+      const containers = await ipc.listContainers();
+      set({ containers });
+      void ipc
+        .trayUpdate(
+          containers.map((c) => ({
+            id: c.id,
+            name: c.name,
+            state: c.state,
+            composeProject: c.composeProject,
+            unhealthy: healthOf(c.status) === "unhealthy",
+          })),
+        )
+        .catch(() => {});
       const view = get().view;
       if (view === "images") set({ images: await ipc.listImages() });
       if (view === "volumes") set({ volumes: await ipc.listVolumes() });

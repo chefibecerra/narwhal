@@ -18,7 +18,7 @@ pub struct DockerState {
     exec_sessions: Mutex<HashMap<String, mpsc::Sender<ExecOp>>>,
 }
 
-async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
+pub(crate) async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
     state
         .host
         .lock()

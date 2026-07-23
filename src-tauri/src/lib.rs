@@ -5,6 +5,7 @@ mod known_hosts;
 mod ssh;
 mod ssh_config;
 mod store;
+mod tray;
 
 use tauri::menu::{MenuBuilder, SubmenuBuilder};
 
@@ -15,6 +16,10 @@ pub fn run() {
         // recuerda tamaño y posición de la ventana entre sesiones
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(commands::DockerState::default())
+        .setup(|app| {
+            tray::init(app.handle())?;
+            Ok(())
+        })
         .menu(|handle| {
             let app_menu = SubmenuBuilder::new(handle, "Narwhal")
                 .about(None)
@@ -81,6 +86,7 @@ pub fn run() {
             ssh_config::read_ssh_config,
             known_hosts::list_known_hosts,
             known_hosts::forget_known_host,
+            tray::tray_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

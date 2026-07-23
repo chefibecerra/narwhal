@@ -94,6 +94,17 @@ export const execResize = (sessionId: string, cols: number, rows: number) =>
 export const execStop = (sessionId: string) =>
   invoke<void>("docker_exec_stop", { sessionId });
 
+/** resumen para el menú de la barra de macOS */
+export const trayUpdate = (
+  containers: {
+    id: string;
+    name: string;
+    state: string;
+    composeProject: string | null;
+    unhealthy: boolean;
+  }[],
+) => invoke<void>("tray_update", { containers });
+
 export const listImages = () => invoke<ImageInfo[]>("docker_list_images");
 export const removeImage = (id: string) =>
   invoke<void>("docker_remove_image", { id });

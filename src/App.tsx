@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComposeDialog } from "@/components/ComposeDialog";
@@ -24,6 +25,16 @@ function App() {
     void loadHosts();
     void connectTo(LOCAL_HOST);
   }, [connectTo, loadHosts]);
+
+  // "Ver en Narwhal" desde el menú de la barra de macOS
+  useEffect(() => {
+    const unlisten = listen<string>("tray-select", (e) => {
+      const s = useContainers.getState();
+      s.setView("containers");
+      s.select(e.payload);
+    });
+    return () => void unlisten.then((fn) => fn());
+  }, []);
 
   // refresco periódico mientras haya conexión
   useEffect(() => {
