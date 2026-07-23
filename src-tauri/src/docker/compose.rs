@@ -21,6 +21,7 @@ pub fn sanitize_project(name: &str) -> Result<String> {
 }
 
 /// `docker compose` v2 con fallback al binario clásico `docker-compose`.
+/// La variante sh se usa en unix y SIEMPRE en remoto (los servidores son unix).
 fn compose_script(file: &str, project: &str) -> String {
     format!(
         "if docker compose version >/dev/null 2>&1; then \
@@ -42,6 +43,20 @@ fn action_script(project: &str, action: &str) -> String {
     )
 }
 
+#[cfg(windows)]
+fn compose_script_windows(file: &str, project: &str) -> String {
+    format!(
+        "(docker compose version >NUL 2>&1 && docker compose -f \"{file}\" -p \"{project}\" up -d --remove-orphans 2>&1) || docker-compose -f \"{file}\" -p \"{project}\" up -d --remove-orphans 2>&1"
+    )
+}
+
+#[cfg(windows)]
+fn action_script_windows(project: &str, action: &str) -> String {
+    format!(
+        "(docker compose version >NUL 2>&1 && docker compose -p \"{project}\" {action} 2>&1) || docker-compose -p \"{project}\" {action} 2>&1"
+    )
+}
+
 fn emit_lines(on_output: &LogSink, raw: &[u8]) {
     for line in String::from_utf8_lossy(raw).lines() {
         on_output(LogChunk {
@@ -54,11 +69,20 @@ fn emit_lines(on_output: &LogSink, raw: &[u8]) {
 pub async fn up_local(project: &str, yaml: &str, on_output: &LogSink) -> Result<()> {
     let path = std::env::temp_dir().join(format!("narwhal-compose-{project}.yml"));
     std::fs::write(&path, yaml).map_err(|e| e.to_string())?;
-    run_local(&compose_script(&path.display().to_string(), project), on_output).await
+    let file = path.display().to_string();
+    #[cfg(unix)]
+    let script = compose_script(&file, project);
+    #[cfg(windows)]
+    let script = compose_script_windows(&file, project);
+    run_local(&script, on_output).await
 }
 
 pub async fn action_local(project: &str, action: &str, on_output: &LogSink) -> Result<()> {
-    run_local(&action_script(project, action), on_output).await
+    #[cfg(unix)]
+    let script = action_script(project, action);
+    #[cfg(windows)]
+    let script = action_script_windows(project, action);
+    run_local(&script, on_output).await
 }
 
 pub async fn action_remote(
@@ -71,9 +95,19 @@ pub async fn action_remote(
 }
 
 async fn run_local(script: &str, on_output: &LogSink) -> Result<()> {
-    let mut child = tokio::process::Command::new("sh")
-        .arg("-c")
-        .arg(&script)
+    #[cfg(unix)]
+    let mut command = {
+        let mut c = tokio::process::Command::new("sh");
+        c.arg("-c").arg(script);
+        c
+    };
+    #[cfg(windows)]
+    let mut command = {
+        let mut c = tokio::process::Command::new("cmd");
+        c.args(["/C", script]);
+        c
+    };
+    let mut child = command
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()

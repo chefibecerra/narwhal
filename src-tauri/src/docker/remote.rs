@@ -23,11 +23,18 @@ pub async fn connect(
         .unwrap_or_else(|| DEFAULT_REMOTE_SOCKET.into());
     let tunnel = SocketTunnel::open(handle, remote_socket, &cfg.id).await?;
 
-    let docker = Docker::connect_with_unix(
-        &tunnel.local_path.to_string_lossy(),
-        30,
-        API_DEFAULT_VERSION,
-    )
+    let docker = match &tunnel.addr {
+        #[cfg(unix)]
+        super::tunnel::DockerAddr::Unix(path) => {
+            Docker::connect_with_unix(&path.to_string_lossy(), 30, API_DEFAULT_VERSION)
+        }
+        #[cfg(not(unix))]
+        super::tunnel::DockerAddr::Tcp(port) => Docker::connect_with_http(
+            &format!("http://127.0.0.1:{port}"),
+            30,
+            API_DEFAULT_VERSION,
+        ),
+    }
     .map_err(|e| e.to_string())?;
 
     Ok(BollardHost::with_tunnel(docker, tunnel))
