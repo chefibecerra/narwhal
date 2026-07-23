@@ -1,0 +1,108 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # La versión de la app sale de package.json; el release del tag de git.
+      # Si no coinciden, abortamos: nunca se publica una versión inconsistente.
+      - name: Verificar que el tag coincide con la versión
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          PKG="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::El tag $TAG no coincide con la versión de package.json ($PKG). Sincroniza y vuelve a etiquetar."
+            exit 1
+          fi
+          echo "Versión coherente: $TAG"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Dependencias de sistema (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - run: pnpm install
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # NOTA: para firmar y notarizar macOS en el futuro, añade aquí las
+          # variables APPLE_* (CERTIFICATE, CERTIFICATE_PASSWORD, SIGNING_IDENTITY,
+          # ID, PASSWORD, TEAM_ID) Y crea sus secretos. Definirlas vacías rompe
+          # el build (tauri-action intenta importar un certificado inexistente).
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Narwhal ${{ github.ref_name }}"
+          releaseBody: |
+            Gestor de Docker de escritorio, local y remoto por SSH.
+
+            ### Instaladores
+            - **macOS**: `.dmg` (Apple Silicon o Intel)
+            - **Windows**: `-setup.exe` o `.msi`
+            - **Linux**: `.deb` o `.rpm`
+
+            ### Portables (sin instalar)
+            - **macOS**: `.app.tar.gz` — descomprime y ejecuta
+            - **Windows**: `_portable.exe` — ejecuta directamente (necesita WebView2, ya viene en Windows 10/11)
+            - **Linux**: `.AppImage` — da permiso de ejecución y ejecuta
+
+            En macOS, si Gatekeeper se queja (app sin firmar todavía):
+            `xattr -cr /Applications/Narwhal.app`
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      # Portable de Windows: el .exe crudo del build (self-contained salvo
+      # WebView2, que ya viene en Windows 10/11). Se ejecuta sin instalar.
+      - name: Publicar portable de Windows
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          cp "src-tauri/target/release/narwhal.exe" "Narwhal_${VERSION}_portable.exe"
+          gh release upload "${{ github.ref_name }}" "Narwhal_${VERSION}_portable.exe" --clobber

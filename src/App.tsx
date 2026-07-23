@@ -10,8 +10,10 @@ import { Header } from "@/components/Header";
 import { ResourceList } from "@/components/ResourceList";
 import { Sidebar } from "@/components/Sidebar";
 import { TerminalDrawer } from "@/components/TerminalDrawer";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { LOCAL_HOST, useContainers } from "@/stores/containers";
+import { useUpdater } from "@/stores/updater";
 
 function App() {
   const status = useContainers((s) => s.status);
@@ -25,6 +27,7 @@ function App() {
   useEffect(() => {
     void loadHosts();
     void connectTo(LOCAL_HOST);
+    void useUpdater.getState().checkOnStartup();
   }, [connectTo, loadHosts]);
 
   // "Ver en Narwhal" desde el menú de la barra de macOS
@@ -67,6 +70,7 @@ function App() {
       {view === "containers" && <DetailPanel />}
       <ComposeDialog open={composeOpen} onOpenChange={setComposeOpen} />
       <CommandPalette />
+      <UpdateBanner />
       <Toaster />
     </div>
   );
