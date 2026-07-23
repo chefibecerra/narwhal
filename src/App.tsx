@@ -11,6 +11,7 @@ import { ResourceList } from "@/components/ResourceList";
 import { Sidebar } from "@/components/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { TerminalDrawer } from "@/components/TerminalDrawer";
+import { TitleBar } from "@/components/TitleBar";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { LOCAL_HOST, useContainers } from "@/stores/containers";
@@ -57,19 +58,23 @@ function App() {
   }, [status, refresh]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      <Sidebar />
-      <main className="flex min-w-0 flex-1 flex-col">
-        <Header />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
-          <div key={view} className="animate-in duration-200 fade-in">
-            {view === "containers" ? <ContainerList /> : <ResourceList />}
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      {/* franja superior de ancho completo; la sidebar empieza debajo */}
+      <TitleBar />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <main className="flex min-w-0 flex-1 flex-col">
+          <Header />
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
+            <div key={view} className="animate-in duration-200 fade-in">
+              {view === "containers" ? <ContainerList /> : <ResourceList />}
+            </div>
           </div>
-        </div>
-        <TerminalDrawer />
-        <StatusBar />
-      </main>
-      {view === "containers" && <DetailPanel />}
+          <TerminalDrawer />
+          <StatusBar />
+        </main>
+        {view === "containers" && <DetailPanel />}
+      </div>
       <ComposeDialog open={composeOpen} onOpenChange={setComposeOpen} />
       <CommandPalette />
       <UpdateBanner />

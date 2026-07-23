@@ -44,13 +44,12 @@ export function Header() {
   const connected = status === "connected";
 
   return (
-    <header
-      data-tauri-drag-region
-      className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4"
-    >
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-5">
       <div className="pointer-events-none flex min-w-0 items-baseline gap-2.5">
-        <h1 className="text-sm font-semibold">{TITLES[view]}</h1>
-        <p className="truncate text-[11px] text-muted-foreground">
+        <h1 className="text-[15px] font-semibold tracking-tight">
+          {TITLES[view]}
+        </h1>
+        <p className="truncate text-xs text-muted-foreground">
           {view === "containers" ? `${running} en ejecución` : `${count} en total`}
         </p>
       </div>
@@ -59,13 +58,13 @@ export function Header() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar…"
-          className="h-7 w-44 text-xs"
+          className="h-7 w-44 border-transparent bg-secondary/40 text-xs transition-colors focus-visible:bg-secondary/70"
         />
         {view === "containers" ? (
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="h-7 text-xs"
+            className="h-7 text-xs text-muted-foreground hover:text-foreground"
             disabled={!connected}
             onClick={() => setComposeOpen(true)}
           >
@@ -75,9 +74,9 @@ export function Header() {
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-7 text-xs"
+                className="h-7 text-xs text-muted-foreground hover:text-foreground"
                 disabled={!connected}
               >
                 <Eraser className="size-3.5" /> Limpiar
