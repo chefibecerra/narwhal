@@ -38,7 +38,9 @@ function App() {
       <main className="flex min-w-0 flex-1 flex-col">
         <Header />
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
-          {view === "containers" ? <ContainerList /> : <ResourceList />}
+          <div key={view} className="animate-in duration-200 fade-in">
+            {view === "containers" ? <ContainerList /> : <ResourceList />}
+          </div>
         </div>
         <TerminalDrawer />
       </main>

@@ -52,7 +52,10 @@ export function DetailPanel() {
   const running = c.state === "running";
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-card/20">
+    <aside
+      key={c.id}
+      className="flex w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-200 fade-in slide-in-from-right-2"
+    >
       <div className="border-b border-border/60 p-4">
         <div className="flex items-center gap-3">
           <span className="relative flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary/60">
@@ -218,9 +221,13 @@ function HostOverview() {
   ).size;
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-card/20">
+    <aside className="flex w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-300 fade-in">
       <div className="flex flex-1 flex-col items-center justify-center gap-5 p-6">
-        <img src={logo} alt="" className="size-14 rounded-2xl opacity-90" />
+        <img
+          src={logo}
+          alt=""
+          className="animate-float size-14 rounded-2xl opacity-90"
+        />
         <div className="text-center">
           <h2 className="text-sm font-semibold">{hostName}</h2>
           <p className="mt-0.5 text-[11px] text-muted-foreground">

@@ -25,7 +25,14 @@ const DOT_BY_STATE: Record<string, string> = {
   paused: "bg-amber-400",
 };
 
-export function ContainerRow({ container: c }: { container: ContainerInfo }) {
+export function ContainerRow({
+  container: c,
+  index = 0,
+}: {
+  container: ContainerInfo;
+  /** posición en el grupo, para escalonar la animación de entrada */
+  index?: number;
+}) {
   const run = useContainers((s) => s.run);
   const select = useContainers((s) => s.select);
   const openExec = useContainers((s) => s.openExec);
@@ -40,8 +47,12 @@ export function ContainerRow({ container: c }: { container: ContainerInfo }) {
       tabIndex={0}
       onClick={() => select(c.id)}
       onKeyDown={(e) => e.key === "Enter" && select(c.id)}
+      style={{
+        animationDelay: `${Math.min(index, 12) * 25}ms`,
+        animationFillMode: "backwards",
+      }}
       className={cn(
-        "group flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors",
+        "group flex cursor-default animate-in items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors duration-300 fade-in slide-in-from-bottom-1",
         selected ? "bg-accent" : "hover:bg-accent/40",
       )}
     >
@@ -67,7 +78,7 @@ export function ContainerRow({ container: c }: { container: ContainerInfo }) {
             {c.name}
           </span>
           {health === "unhealthy" && (
-            <span className="shrink-0 rounded border border-amber-400/40 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-amber-400">
+            <span className="shrink-0 animate-in rounded border border-amber-400/40 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-amber-400 duration-300 zoom-in">
               unhealthy
             </span>
           )}

@@ -244,9 +244,9 @@ function Group({
         </span>
       </div>
       {open && (
-        <div className="ml-4 border-l border-border/60 pl-2">
-          {items.map((c) => (
-            <ContainerRow key={c.id} container={c} />
+        <div className="ml-4 animate-in border-l border-border/60 pl-2 duration-200 fade-in slide-in-from-top-1">
+          {items.map((c, i) => (
+            <ContainerRow key={c.id} container={c} index={i} />
           ))}
         </div>
       )}

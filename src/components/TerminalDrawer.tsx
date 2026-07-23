@@ -66,7 +66,7 @@ export function TerminalDrawer() {
   if (!execId) return null;
 
   return (
-    <div className="flex h-72 shrink-0 flex-col border-t border-border bg-card/50">
+    <div className="flex h-72 shrink-0 animate-in flex-col border-t border-border bg-card/50 duration-300 fade-in slide-in-from-bottom-4">
       <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
         <TerminalIcon className="size-3.5 text-muted-foreground" />
         <span className="text-xs font-medium">Consola · {name}</span>
