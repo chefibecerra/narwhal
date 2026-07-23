@@ -1,130 +1,121 @@
-# Narwhal
-
-> El unicornio del mar que navega entre tus contenedores.
-
-Gestor de Docker de escritorio, **local y remoto**. Ver, controlar y depurar contenedores
-—en tu propia máquina o en cualquier servidor por SSH— sin instalar nada extra ni abrir una
-terminal a mano. El hermano de [Ratatoskr](https://github.com/chefibecerra/ratatoskr) para
-Docker. Como OrbStack, pero multiplataforma y con servidores remotos.
-
-## Por qué
-
-- Gestionar Docker es teclear `docker ps`, `docker logs -f`, `docker compose` a mano,
-  recordando en qué carpeta vive cada `docker-compose.yml`.
-- **OrbStack** es precioso pero **solo Mac y solo local**. **Portainer** exige instalar un
-  agente y exponer un puerto. Narwhal cubre el hueco: **multiplataforma**, **local + remoto**,
-  sin agente ni puertos abiertos.
-- Misma estética minimal y seguridad zero-knowledge de Ratatoskr, no un panel web pesado.
-
-## Alcance (importante)
-
-Narwhal **gestiona** Docker; no **provee** el motor. Se apoya en un Docker que ya existe:
-- **Local**: el Docker de tu máquina (Docker Desktop, OrbStack, Colima, el engine…).
-- **Remoto**: el Docker de un servidor, por SSH.
-
-No reinventa la máquina virtual / el demonio (eso es virtualización, otro producto). Es la
-capa de gestión bonita por encima — como Lazydocker o el panel de Docker Desktop, pero mejor.
-
-## La idea: un "host de Docker" con dos modos
-
-La interfaz es la misma; solo cambia cómo se llega a Docker por debajo:
-
-- **Local** → habla con el socket de Docker (`/var/run/docker.sock`) o la CLI local.
-- **Remoto** → por SSH, ejecuta la CLI en el servidor y parsea la salida
-  (`docker ps --format '{{json .}}'`). Cero agente, cero puertos abiertos.
-
-Reutiliza la base de Ratatoskr: `russh` (para el modo remoto), el vault cifrado, la gestión
-de hosts, TOFU y la UI.
-
-## Qué muestra / hace
-
-- **Contenedores**: lista (corriendo / parados), estado, imagen, puertos, uptime.
-- **Acciones**: arrancar, parar, reiniciar, eliminar, recrear.
-- **Logs en vivo** (streaming) con búsqueda.
-- **Exec**: abrir una shell dentro de un contenedor (terminal xterm.js, reutilizando el de
-  Ratatoskr).
-- **Estadísticas**: CPU / RAM por contenedor.
-- **Imágenes, volúmenes y redes**.
-- **Docker Compose**: detecta proyectos, `up` / `down` / `ps` / `logs` por proyecto.
-- **Multi-servidor**: cambia entre tus VPS de un vistazo.
-
-## Stack (heredado de Ratatoskr)
-
-| Capa | Tecnología |
-|------|------------|
-| Shell de la app | Tauri 2 |
-| Frontend | React 19 + TypeScript + Vite |
-| UI | Tailwind + shadcn/ui, tema oscuro |
-| SSH | `russh` (Rust puro) |
-| Terminal (exec) | xterm.js |
-| Credenciales | Vault Argon2id + ChaCha20-Poly1305 (zero-knowledge) |
-
-## Arquitectura (concepto)
-
-```
-┌─ Webview (React) ─────────────┐      ┌─ Rust (Tauri) ────────────────┐
-│ Lista de contenedores         │ IPC  │ trait DockerHost:             │
-│ Logs en vivo · stats          │◄────►│  ├─ Local  → socket / CLI     │
-│ Terminal exec (xterm)         │      │  └─ Remoto → russh + docker   │
-└───────────────────────────────┘      └──────┬──────────────┬─────────┘
-                                               │ local        │ SSH
-                                    ┌──────────▼───┐   ┌──────▼──────────┐
-                                    │ Docker de tu │   │ Servidor remoto │
-                                    │ máquina      │   │ con Docker      │
-                                    └──────────────┘   └─────────────────┘
-```
-
-La UI no sabe si el Docker es local o remoto: habla contra el trait `DockerHost` y punto.
-
-## Fases
-
-### Fase 1 — MVP (empezar por LOCAL, es más simple)
-- [x] Scaffold Tauri 2 + React (reutilizar base de Ratatoskr)
-- [x] `trait DockerHost` con la implementación **local** (socket vía bollard)
-- [x] Listar contenedores (Docker API, sin parseo de CLI)
-- [x] Arrancar / parar / reiniciar / eliminar
-- [x] Logs en vivo con streaming a la UI
-
-### Fase 1.5 — Modo remoto
-- [x] Implementación **remota** del `DockerHost`: russh + túnel del socket
-      (`direct-streamlocal`) + el mismo bollard — un solo camino de datos
-- [x] Selector local / servidores en la sidebar, TOFU, import de `~/.ssh/config`
-- [ ] Vault cifrado para poder guardar contraseñas (hoy: solo en memoria)
-
-### Fase 2 — Profundidad
-- [ ] Exec: shell dentro de un contenedor (xterm)
-- [ ] Stats en vivo (CPU/RAM)
-- [ ] Imágenes, volúmenes, redes
-
-### Fase 3 — Compose
-- [ ] Detectar proyectos compose y su ruta
-- [ ] `up` / `down` / `ps` / `logs` por proyecto
-
-### Después
-- Multi-servidor simultáneo, alertas de healthcheck, limpieza (prune) guiada.
-
-## Estética
-
-Igual que Ratatoskr: **monocromo, minimal, estilo Apple/Tesla**, tema oscuro, titlebar
-overlay de macOS, español neutro en toda la interfaz.
-
-## Qué se reutiliza de Ratatoskr
-
-Capa SSH (`russh`), gestión de hosts, vault cifrado, verificación TOFU, terminal xterm.js
-(para el exec), toda la UI base (shadcn, tema, componentes) y el **pipeline de release**
-(instaladores + portables para las 3 plataformas, auto-update firmado, guardián de versión
-en CI). Buena parte del trabajo pesado ya está resuelta.
-
-## Decisiones tomadas
-
-- **API, no CLI**: bollard contra el socket de Docker. En remoto, el socket del servidor
-  se reenvía por un canal SSH `direct-streamlocal` (como `ssh -L`) y bollard habla con él
-  igual que en local. Un solo camino de datos, cero parseo, cero dependencias en el servidor.
-- **Sin secretos en disco**: los hosts se guardan en JSON plano (0600) sin contraseñas;
-  password/passphrase se piden al conectar y viven solo en memoria. El vault cifrado
-  llegará cuando haga falta guardarlos.
-- **Hosts independientes de Ratatoskr**, con import desde `~/.ssh/config`.
+<div align="center">
+  <img src="docs/logo.png" alt="Narwhal" width="120" height="120" />
+  <h1>Narwhal</h1>
+  <p><strong>Gestor de Docker de escritorio, local y remoto.</strong></p>
+  <p><em>El unicornio del mar que navega entre tus contenedores.</em></p>
+  <p>
+    <img alt="Plataformas" src="https://img.shields.io/badge/macOS%20·%20Windows%20·%20Linux-0c0c0d?style=flat-square" />
+    <img alt="Licencia" src="https://img.shields.io/badge/licencia-MIT-0c0c0d?style=flat-square" />
+    <img alt="Hecho con" src="https://img.shields.io/badge/Rust%20+%20Tauri-0c0c0d?style=flat-square" />
+  </p>
+  <p><a href="https://chefibecerra.github.io/narwhal/"><strong>chefibecerra.github.io/narwhal</strong></a></p>
+</div>
 
 ---
 
-*Proyecto hermano de Ratatoskr. Contexto y decisiones en la memoria del asistente.*
+<div align="center">
+  <img src="docs/screenshot.png" alt="Narwhal en acción" width="820" />
+</div>
+
+Narwhal es un gestor de Docker de escritorio para macOS, Windows y Linux. La misma
+interfaz para el Docker de tu máquina y el de cualquier servidor por SSH — **sin
+instalar agentes, sin abrir puertos, sin paneles web pesados**. Como OrbStack, pero
+multiplataforma y con tus VPS dentro.
+
+## Características
+
+- **Local y remoto, misma app** — el Docker de tu máquina (Docker Desktop, OrbStack,
+  Colima…) y tus servidores por SSH. Cambiar de host es un clic; todo funciona igual.
+- **Cero agentes, cero puertos** — el socket de Docker del servidor viaja por un túnel
+  SSH cifrado (el equivalente a `ssh -L`, automático). El servidor solo necesita Docker.
+- **Agrupado por proyecto Compose** — contenedores organizados como tú piensas, con el
+  icono de cada servicio: Postgres, Redis, Nginx, Grafana… y acciones de grupo
+  (`stop`, `restart`, `down`).
+- **Despliega un Compose pegándolo** — pega tu `docker-compose.yml`, dale nombre y
+  míralo levantarse con la salida en vivo. Se guarda en tu biblioteca para re-desplegar.
+- **Consola dentro del contenedor** — terminal real (xterm) vía Docker API: bash o sh,
+  colores, resize. Idéntica contra servidores remotos, a través del túnel.
+- **Logs y stats en vivo** — streaming con búsqueda, CPU y RAM por contenedor, y badges
+  de healthcheck que avisan cuando algo lleva días `unhealthy`.
+- **Imágenes, volúmenes y redes** — las cuatro vistas completas, con limpieza guiada
+  (`prune`) que dice cuánto espacio liberaste.
+- **Barra de menú de macOS** — tus proyectos y su estado sin abrir la ventana, con
+  acciones rápidas por contenedor.
+- **Paleta de comandos** (`⌘K`) — salta a cualquier contenedor, host o vista sin ratón.
+- **Docker API nativa** — habla con el socket vía [`bollard`](https://github.com/fussybeaver/bollard)
+  (Rust): sin parsear CLI, sin depender de la versión del cliente del servidor.
+- **Claves SSH detectadas** — elige tu clave de `~/.ssh` de un desplegable o importa
+  tus hosts desde `~/.ssh/config` en dos clics.
+- **Actualizaciones automáticas** — firmadas criptográficamente, con aviso y confirmación.
+
+## Instalación
+
+Descarga desde la
+[**página de releases**](https://github.com/chefibecerra/narwhal/releases/latest):
+
+| Plataforma | Instalador | Portable (sin instalar) |
+|-----------|-----------|--------------------------|
+| macOS (Apple Silicon / Intel) | `.dmg` | `.app.tar.gz` |
+| Windows | `.exe` o `.msi` | `_portable.exe` |
+| Linux | `.deb` o `.rpm` | `.AppImage` |
+
+Los **portables** se ejecutan sin instalación ni permisos de administrador (el `.exe`
+de Windows solo necesita WebView2, incluido en Windows 10/11).
+
+> **macOS**: las compilaciones aún no están firmadas con Apple. Si Gatekeeper se queja,
+> ejecuta `xattr -cr /Applications/Narwhal.app` una vez tras instalar.
+
+## Cómo funciona el modo remoto
+
+```
+┌─ Narwhal ─────────────────┐
+│  UI · logs · stats · exec │
+│      Docker API (Rust)    │
+└─────┬──────────────┬──────┘
+      │ socket local │ túnel SSH (russh)
+┌─────▼─────┐  ┌─────▼──────────────────────┐
+│ Docker de │  │ /var/run/docker.sock       │
+│ tu máquina│  │ del servidor — sin agente  │
+└───────────┘  └────────────────────────────┘
+```
+
+Narwhal reenvía el socket de Docker del servidor por un canal SSH
+(`direct-streamlocal`) y habla la API nativa contra él. Por eso **todo** — consola,
+stats, compose — funciona idéntico en local y en remoto: es un solo camino de datos.
+
+## Seguridad
+
+La regla de oro: **tus secretos no tocan el disco.**
+
+- Los hosts se guardan **sin contraseñas**. Password o passphrase se piden al conectar
+  y viven solo en memoria durante la sesión (como `ssh-agent`); al cerrar la app, se esfuman.
+- **Verificación TOFU** como OpenSSH: la huella del servidor se registra en la primera
+  conexión y se verifica en las siguientes. Si cambia, Narwhal corta y avisa de posible MITM.
+- **Rust de punta a punta**: SSH con `russh`, Docker API con `bollard`, app nativa con
+  Tauri 2. Sin Electron, sin telemetría, sin cuentas.
+
+## Compilar desde el código
+
+Requisitos: [Rust](https://rustup.rs), [Node.js](https://nodejs.org) 20+ y
+[pnpm](https://pnpm.io), más las
+[dependencias de sistema de Tauri](https://tauri.app/start/prerequisites/).
+
+```bash
+pnpm install
+pnpm tauri dev      # desarrollo con hot-reload
+pnpm tauri build    # instalador de producción
+```
+
+## Hoja de ruta
+
+- [ ] Vault cifrado para guardar contraseñas (mismo formato que Ratatoskr, importable)
+- [ ] Stats de CPU/RAM en cada fila de la lista
+- [ ] Ver y editar el YAML de proyectos Compose ya existentes
+- [ ] Reconexión SSH automática con backoff
+- [ ] Firma y notarización de Apple
+
+---
+
+<div align="center">
+  <p>Proyecto hermano de <a href="https://github.com/chefibecerra/ratatoskr">Ratatoskr</a> 🐿️ — hecho con Rust, Tauri y respeto por tus servidores.</p>
+</div>
