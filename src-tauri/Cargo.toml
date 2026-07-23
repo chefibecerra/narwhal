@@ -1,6 +1,6 @@
 [package]
 name = "narwhal"
-version = "0.1.0"
+version = "0.1.1"
 description = "Gestor de Docker de escritorio, local y remoto"
 authors = ["chefibecerra"]
 edition = "2021"
