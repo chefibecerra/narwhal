@@ -166,7 +166,7 @@ function Group({
 
   return (
     <section className="mb-1">
-      <div className="group/header flex w-full items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-accent/40">
+      <div className="group/header sticky top-0 z-10 flex w-full items-center gap-2 rounded-lg bg-background px-2 py-1 transition-colors hover:bg-secondary">
         <button
           onClick={onToggle}
           className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"

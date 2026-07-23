@@ -65,7 +65,7 @@ export function Sidebar() {
         <img
           src={logo}
           alt=""
-          className="pointer-events-none size-5 rounded-[5px]"
+          className="pointer-events-none size-6 shrink-0 rounded-md"
         />
         <span className="pointer-events-none text-sm font-semibold tracking-wide">
           Narwhal

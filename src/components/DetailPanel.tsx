@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
+import { Rocket } from "lucide-react";
 import { Play, RotateCw, Square, Terminal, Trash2 } from "lucide-react";
+
+import logo from "@/assets/narwhal.png";
+import { healthOf } from "@/lib/docker";
+import { LOCAL_HOST } from "@/stores/containers";
 
 import {
   AlertDialog,
@@ -40,13 +45,7 @@ export function DetailPanel() {
   );
 
   if (!container) {
-    return (
-      <aside className="flex w-80 shrink-0 items-center justify-center border-l border-border bg-card/20">
-        <p className="text-sm font-medium text-muted-foreground/50">
-          Sin selección
-        </p>
-      </aside>
-    );
+    return <HostOverview />;
   }
 
   const c = container;
@@ -195,6 +194,94 @@ export function DetailPanel() {
         </TabsContent>
       </Tabs>
     </aside>
+  );
+}
+
+/** sin selección: el panel se gana la vida como resumen del host activo */
+function HostOverview() {
+  const docker = useContainers((s) => s.docker);
+  const containers = useContainers((s) => s.containers);
+  const hostName = useContainers((s) =>
+    s.activeHostId === LOCAL_HOST
+      ? "Esta máquina"
+      : (s.hosts.find((h) => h.id === s.activeHostId)?.name ?? "—"),
+  );
+  const setComposeOpen = useContainers((s) => s.setComposeOpen);
+
+  const running = containers.filter((c) => c.state === "running").length;
+  const stopped = containers.length - running;
+  const unhealthy = containers.filter(
+    (c) => healthOf(c.status) === "unhealthy",
+  ).length;
+  const projects = new Set(
+    containers.map((c) => c.composeProject).filter(Boolean),
+  ).size;
+
+  return (
+    <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-card/20">
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 p-6">
+        <img src={logo} alt="" className="size-14 rounded-2xl opacity-90" />
+        <div className="text-center">
+          <h2 className="text-sm font-semibold">{hostName}</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {docker
+              ? `Docker ${docker.version} · ${docker.os} · API ${docker.apiVersion}`
+              : "Sin conexión"}
+          </p>
+        </div>
+
+        <div className="grid w-full grid-cols-3 gap-2">
+          <StatTile value={running} label="activos" accent="text-emerald-400" />
+          <StatTile value={stopped} label="parados" />
+          <StatTile
+            value={unhealthy}
+            label="unhealthy"
+            accent={unhealthy > 0 ? "text-amber-400" : undefined}
+          />
+        </div>
+        {projects > 0 && (
+          <p className="text-[11px] text-muted-foreground">
+            {projects} {projects === 1 ? "proyecto compose" : "proyectos compose"}
+          </p>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setComposeOpen(true)}
+        >
+          <Rocket className="size-3" /> Desplegar Compose
+        </Button>
+
+        <p className="text-center text-[10px] leading-relaxed text-muted-foreground/50">
+          Selecciona un contenedor para ver
+          <br />
+          su detalle, stats y logs
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+function StatTile({
+  value,
+  label,
+  accent,
+}: {
+  value: number;
+  label: string;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-secondary/20 px-2 py-3 text-center">
+      <p className={cn("text-lg font-semibold tabular-nums", accent)}>
+        {value}
+      </p>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+    </div>
   );
 }
 
