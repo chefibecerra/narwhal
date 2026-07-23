@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Narwhal — Gestor de Docker, local y remoto</title>
-  <meta name="description" content="Gestor de Docker de escritorio. Tu máquina y tus servidores por SSH, sin agentes ni puertos abiertos. Compose, consola, logs y stats en vivo. Hecho con Rust y Tauri." />
+  <meta name="description" content="Gestor de Docker de escritorio para tu máquina y tus servidores por SSH. Sin agentes, sin puertos abiertos. Compose, consola, logs y stats en vivo. Hecho con Rust y Tauri." />
   <link rel="icon" type="image/png" href="narwhal.png" />
   <meta property="og:title" content="Narwhal — Gestor de Docker" />
-  <meta property="og:description" content="El unicornio del mar que navega entre tus contenedores. Local y remoto por SSH, cero agentes." />
+  <meta property="og:description" content="Tus contenedores, donde estén. Local y remoto por SSH, cero agentes." />
   <meta property="og:image" content="narwhal.png" />
   <style>
     :root {
@@ -20,134 +20,243 @@
       --border: rgba(255, 255, 255, 0.07);
       --green: #34d399;
       --amber: #fbbf24;
+      --blue: #6ba6ff;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       background: var(--bg);
       color: var(--fg);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", ui-sans-serif, system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
       -webkit-font-smoothing: antialiased;
-      line-height: 1.6;
+      line-height: 1.55;
+      overflow-x: hidden;
     }
-    a { color: inherit; text-decoration: none; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-    code, kbd, .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+    .mono { font-family: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; }
+    .wrap { max-width: 1020px; margin: 0 auto; padding: 0 24px; }
 
+    /* ---------- Nav ---------- */
     nav {
       position: sticky; top: 0; z-index: 50;
-      background: rgba(10, 10, 11, 0.8);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
+      background: rgba(10, 10, 11, 0.72);
       border-bottom: 1px solid var(--border);
     }
     .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); }
     .brand img { width: 26px; height: 26px; border-radius: 7px; }
-    .nav-links { display: flex; align-items: center; gap: 22px; font-size: 13px; color: var(--muted); }
+    .brand span { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+    .nav-links { display: flex; align-items: center; gap: 22px; }
+    .nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color 0.15s ease; }
     .nav-links a:hover { color: var(--fg); }
-    .nav-cta {
-      color: var(--bg) !important; background: var(--fg);
-      padding: 6px 14px; border-radius: 8px; font-weight: 600;
-    }
+    .nav-links .nav-cta { color: var(--bg); background: var(--fg); padding: 6px 14px; border-radius: 999px; font-weight: 500; }
+    .nav-links .nav-cta:hover { color: var(--bg); opacity: 0.9; }
 
-    header { position: relative; overflow: hidden; padding: 96px 0 72px; text-align: center; }
+    /* ---------- Hero ---------- */
+    header { position: relative; padding: 88px 0 72px; text-align: center; }
     .glow {
-      position: absolute; inset: -20% -10% auto; height: 520px;
+      position: absolute; inset: -20% -10% auto; height: 480px;
       background:
         radial-gradient(420px 240px at 50% 20%, rgba(52, 211, 153, 0.07), transparent 70%),
         radial-gradient(680px 340px at 50% 0%, rgba(255, 255, 255, 0.05), transparent 70%);
       pointer-events: none;
     }
-    .hero-logo-wrap { position: relative; display: inline-block; margin-bottom: 28px; }
-    .hero-logo-wrap::before {
-      content: ""; position: absolute; inset: -36px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.05); filter: blur(32px);
-    }
-    .hero-logo {
-      position: relative; width: 96px; height: 96px; border-radius: 24px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-      animation: float 5s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
     .badge {
       display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--muted);
       border: 1px solid var(--border); border-radius: 999px;
-      padding: 5px 14px; font-size: 12px; color: var(--muted);
-      margin-bottom: 22px; background: rgba(255, 255, 255, 0.02);
+      padding: 5px 13px; margin-bottom: 26px;
+      animation: rise 0.6s ease-out both;
     }
-    .pulse-dot {
-      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
-      animation: pulse 2s ease-in-out infinite;
+    .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: live 2.4s ease-in-out infinite; }
+    h1 {
+      font-size: clamp(38px, 6vw, 56px); font-weight: 275; letter-spacing: -0.025em;
+      animation: rise 0.6s ease-out 0.07s both;
     }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-    h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
-    h1 .accent { color: var(--green); }
-    .sub {
-      margin: 18px auto 0; max-width: 560px;
-      color: var(--muted); font-size: 17px;
+    .tagline {
+      margin: 14px auto 0; max-width: 580px;
+      font-size: 17px; color: var(--muted);
+      animation: rise 0.6s ease-out 0.14s both;
     }
-    .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+    .cta { margin-top: 34px; animation: rise 0.6s ease-out 0.21s both; }
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 11px 22px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      background: var(--fg); color: var(--bg);
+      border: 0; border-radius: 999px; cursor: pointer;
+      padding: 13px 28px; font-size: 15px; font-weight: 500;
+      text-decoration: none;
       transition: transform 0.15s ease, opacity 0.15s ease;
     }
-    .btn:hover { transform: translateY(-1px); }
-    .btn-primary { background: var(--fg); color: var(--bg); }
-    .btn-ghost { border: 1px solid var(--border); color: var(--fg); background: rgba(255, 255, 255, 0.02); }
-    .hero-note { margin-top: 16px; font-size: 12px; color: var(--faint); }
+    .btn:hover { opacity: 0.9; }
+    .btn:active { transform: scale(0.97); }
+    .cta-sub { margin-top: 13px; font-size: 12.5px; color: var(--muted); }
+    .cta-sub a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+    .cta-sub a:hover { color: var(--fg); }
 
-    .shot {
-      margin: 64px auto 0; max-width: 960px; padding: 0 24px;
+    /* ---------- Mockup de la app ---------- */
+    .app {
+      margin: 64px auto 0; max-width: 860px; text-align: left;
+      background: var(--bg-chrome); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.03);
+      animation: rise 0.8s ease-out 0.3s both;
+      font-size: 12.5px;
     }
-    .shot img {
-      width: 100%; border-radius: 14px; border: 1px solid var(--border);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+    .app-titlebar {
+      display: flex; align-items: center; gap: 14px;
+      height: 42px; padding: 0 14px;
+      border-bottom: 1px solid var(--border);
     }
+    .traffic { display: flex; gap: 7px; }
+    .traffic span { width: 11px; height: 11px; border-radius: 50%; }
+    .traffic .r { background: #ff5f57; } .traffic .y { background: #febc2e; } .traffic .g { background: #28c840; }
+    .app-tab {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(255, 255, 255, 0.07); border-radius: 7px;
+      padding: 5px 12px; color: var(--fg);
+    }
+    .app-body { display: flex; min-height: 380px; }
+    .app-side { width: 190px; border-right: 1px solid var(--border); padding: 12px 10px; flex-shrink: 0; }
+    .side-label { font-size: 10px; color: var(--faint); letter-spacing: 0.08em; margin: 0 6px 6px; }
+    .side-item {
+      display: flex; align-items: center; gap: 8px;
+      border-radius: 8px; padding: 6px 9px; color: var(--muted); margin-bottom: 1px;
+    }
+    .side-item svg { width: 14px; height: 14px; opacity: 0.75; }
+    .side-item.sel { background: rgba(255, 255, 255, 0.07); color: var(--fg); }
+    .side-item .dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .side-gap { height: 14px; }
+    .host-item { transition: background 0.3s ease, color 0.3s ease; }
 
+    .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .main-head {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 12px 16px 8px; border-bottom: 1px solid var(--border);
+    }
+    .main-head b { font-size: 13px; }
+    .main-head span { color: var(--faint); font-size: 11px; }
+    .clist { flex: 1; padding: 10px 12px; overflow: hidden; }
+    .cgroup {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 8px; color: var(--fg); font-weight: 600; font-size: 12px;
+    }
+    .cgroup .count { margin-left: auto; color: var(--faint); font-weight: 400; }
+    .crow {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 8px 6px 20px; border-radius: 8px;
+      animation: rise 0.4s ease-out both;
+    }
+    .crow:hover { background: rgba(255, 255, 255, 0.04); }
+    .cicon {
+      position: relative; width: 26px; height: 26px; border-radius: 7px;
+      background: rgba(255, 255, 255, 0.07);
+      display: grid; place-items: center; font-size: 12px; flex-shrink: 0;
+    }
+    .cicon .st {
+      position: absolute; right: -2px; bottom: -2px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); border: 2px solid var(--bg-chrome);
+    }
+    .cicon .st.off { background: var(--faint); }
+    .cicon .st.warn { background: var(--amber); }
+    .cmeta { min-width: 0; }
+    .cname { font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+    .cimg { font-size: 10.5px; color: var(--faint); white-space: nowrap; }
+    .chips { display: flex; gap: 5px; margin-left: auto; }
+    .chip {
+      font-family: "SF Mono", ui-monospace, monospace; font-size: 9.5px;
+      background: rgba(255, 255, 255, 0.05); border-radius: 5px; padding: 2px 6px;
+      color: var(--muted); white-space: nowrap;
+    }
+    .chip b { color: var(--fg); font-weight: 500; }
+    .main-status {
+      display: flex; justify-content: space-between;
+      color: var(--faint); font-size: 11px;
+      border-top: 1px solid var(--border); padding: 8px 16px;
+    }
+    .main-status .g { color: var(--green); }
+
+    /* ---------- Secciones ---------- */
     section { padding: 88px 0; border-top: 1px solid var(--border); }
-    .kicker { color: var(--green); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; }
-    h2 { font-size: 30px; letter-spacing: -0.02em; margin-top: 10px; }
-    .section-sub { color: var(--muted); margin-top: 10px; max-width: 620px; }
+    .kicker {
+      font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--faint); text-align: center; margin-bottom: 10px;
+    }
+    h2 { font-size: 26px; font-weight: 350; letter-spacing: -0.015em; text-align: center; margin-bottom: 40px; }
 
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
-    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
     .card {
       background: var(--bg-raised); border: 1px solid var(--border);
-      border-radius: 14px; padding: 22px;
+      border-radius: 14px; padding: 24px 22px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
     }
-    .card .icon { font-size: 20px; }
-    .card h3 { font-size: 15px; margin: 12px 0 6px; }
+    .card:hover { border-color: rgba(255, 255, 255, 0.16); transform: translateY(-2px); }
+    .card .icon {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
+      display: grid; place-items: center; margin-bottom: 14px;
+    }
+    .card .icon svg { width: 15px; height: 15px; color: var(--fg); }
+    .card h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
     .card p { font-size: 13px; color: var(--muted); }
 
-    .how {
-      margin-top: 44px; background: var(--bg-raised); border: 1px solid var(--border);
-      border-radius: 14px; padding: 28px; overflow-x: auto;
+    /* ---------- Cómo funciona / Seguridad ---------- */
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .step {
+      background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px 22px;
     }
-    .how pre { font-size: 12.5px; line-height: 1.7; color: var(--muted); }
-    .how .hl { color: var(--green); }
+    .step .num {
+      font-family: "SF Mono", ui-monospace, monospace;
+      font-size: 12px; color: var(--green); margin-bottom: 12px; display: block;
+    }
+    .step h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
+    .step p { font-size: 13px; color: var(--muted); }
+    .security-note {
+      margin: 28px auto 0; max-width: 640px; text-align: center;
+      font-size: 13px; color: var(--muted);
+    }
+    .security-note strong { color: var(--fg); font-weight: 500; }
 
-    .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
-    @media (max-width: 800px) { .dl-grid { grid-template-columns: 1fr; } }
-    .dl {
-      background: var(--bg-raised); border: 1px solid var(--border); border-radius: 14px;
-      padding: 26px; text-align: center; transition: border-color 0.15s ease;
+    /* ---------- Descargas ---------- */
+    .group-label { text-align: center; font-size: 12px; color: var(--faint); margin-bottom: 12px; letter-spacing: 0.04em; }
+    #latest-tag { color: var(--faint); font-family: "SF Mono", ui-monospace, monospace; }
+    .platforms { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .platform {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid var(--border); border-radius: 11px;
+      padding: 12px 20px; font-size: 13.5px; color: var(--fg);
+      text-decoration: none; background: var(--bg-raised);
+      transition: border-color 0.2s ease, transform 0.15s ease;
     }
-    .dl:hover { border-color: rgba(255, 255, 255, 0.18); }
-    .dl .os { font-size: 26px; }
-    .dl h3 { margin: 10px 0 4px; font-size: 15px; }
-    .dl p { font-size: 12px; color: var(--faint); }
+    .platform:hover { border-color: rgba(255, 255, 255, 0.18); }
+    .platform:active { transform: scale(0.97); }
+    .platform .dim { font-size: 11.5px; color: var(--faint); }
 
     footer {
-      border-top: 1px solid var(--border); padding: 36px 0;
-      font-size: 12.5px; color: var(--faint);
-      display: flex; flex-direction: column; gap: 6px; text-align: center;
+      padding: 44px 0 60px; border-top: 1px solid var(--border);
+      text-align: center; font-size: 12.5px; color: var(--faint);
     }
     footer a { color: var(--muted); }
     footer a:hover { color: var(--fg); }
+
+    /* ---------- Animaciones ---------- */
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes live {
+      0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45); }
+      70%, 100% { box-shadow: 0 0 0 5px rgba(52, 211, 153, 0); }
+    }
+    .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+    @media (max-width: 640px) {
+      .app-side { display: none; }
+      .chips { display: none; }
+      .nav-links a:not(.nav-cta) { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -161,7 +270,7 @@
         <a href="#features">Características</a>
         <a href="#como-funciona">Cómo funciona</a>
         <a href="#seguridad">Seguridad</a>
-        <a href="#descargar" class="nav-cta">Descargar</a>
+        <a href="#plataformas" class="nav-cta">Descargar</a>
       </div>
     </div>
   </nav>
@@ -169,66 +278,111 @@
   <header>
     <div class="glow"></div>
     <div class="wrap">
-      <div class="hero-logo-wrap">
-        <img class="hero-logo" src="narwhal.png" alt="Narwhal" />
+      <span class="badge"><span class="pulse-dot"></span> Open source · Rust + Tauri<span id="hero-version"></span></span>
+      <h1>Tus contenedores, donde estén</h1>
+      <p class="tagline">Gestor de Docker para tu máquina y tus servidores por SSH. Sin agentes, sin puertos abiertos, sin paneles web pesados. El unicornio del mar que navega entre tus contenedores.</p>
+
+      <div class="cta">
+        <a class="btn" id="download-btn" href="#plataformas"><span id="download-label">Descargar</span></a>
+        <p class="cta-sub"><span id="detected-os"></span><a href="#plataformas">Otras plataformas</a></p>
       </div>
-      <div>
-        <span class="badge"><span class="pulse-dot"></span> Open source · Rust + Tauri</span>
+
+      <!-- Mockup: la misma UI cambia de host local a VPS remoto -->
+      <div class="app">
+        <div class="app-titlebar">
+          <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <span class="app-tab"><span class="pulse-dot"></span> <span id="tab-host">Esta máquina</span></span>
+        </div>
+        <div class="app-body">
+          <div class="app-side">
+            <p class="side-label">DOCKER</p>
+            <div class="side-item sel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v9"/></svg>
+              Contenedores
+            </div>
+            <div class="side-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 3 8l9 5 9-5z"/><path d="m3 13 9 5 9-5"/></svg>
+              Imágenes
+            </div>
+            <div class="side-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+              Volúmenes
+            </div>
+            <div class="side-gap"></div>
+            <p class="side-label">HOSTS</p>
+            <div class="side-item host-item" id="host-local">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg>
+              Esta máquina
+              <span class="dot" id="dot-local"></span>
+            </div>
+            <div class="side-item host-item" id="host-vps">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+              vps-prod
+              <span class="dot" id="dot-vps" style="display:none"></span>
+            </div>
+          </div>
+          <div class="app-main">
+            <div class="main-head"><b>Contenedores</b><span id="head-count">4 en ejecución</span></div>
+            <div class="clist" id="clist"></div>
+            <div class="main-status">
+              <span><span class="g" id="status-conn">● conectado</span></span>
+              <span class="mono" id="status-host">Docker 29.4 · local</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <h1>Tus contenedores,<br /><span class="accent">donde estén</span>.</h1>
-      <p class="sub">
-        Gestor de Docker de escritorio para tu máquina y tus servidores por SSH.
-        Sin agentes, sin puertos abiertos, sin paneles web pesados.
-      </p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/chefibecerra/narwhal/releases/latest">↓ Descargar para macOS</a>
-        <a class="btn btn-ghost" href="https://github.com/chefibecerra/narwhal">Ver en GitHub</a>
-      </div>
-      <p class="hero-note">macOS · Linux · Windows — gratis y open source</p>
-    </div>
-    <div class="shot">
-      <img src="screenshot.png" alt="Narwhal mostrando contenedores agrupados por proyecto compose" onerror="this.parentElement.style.display='none'" />
     </div>
   </header>
 
   <section id="features">
     <div class="wrap">
-      <span class="kicker">Características</span>
-      <h2>Todo lo que haces a mano, a un clic.</h2>
-      <p class="section-sub">
-        La misma interfaz para el Docker de tu máquina y el de cualquier VPS.
-        Cambiar de host es un clic; todo lo demás funciona exactamente igual.
-      </p>
+      <p class="kicker reveal">Características</p>
+      <h2 class="reveal">Todo lo que haces a mano, a un clic.</h2>
       <div class="grid">
-        <div class="card">
-          <div class="icon">🖥️</div>
-          <h3>Local y remoto, sin fricción</h3>
-          <p>Tu Docker Desktop, OrbStack o Colima — y tus servidores por SSH. Importa tus hosts desde <code>~/.ssh/config</code> en dos clics.</p>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+          <h3>Local y remoto, misma app</h3>
+          <p>El Docker de tu máquina y el de cualquier VPS por SSH. Cambiar de host es un clic; todo lo demás funciona exactamente igual. Importa tus servidores desde <span class="mono">~/.ssh/config</span>.</p>
         </div>
-        <div class="card">
-          <div class="icon">📦</div>
-          <h3>Agrupado por proyecto Compose</h3>
-          <p>Contenedores organizados como tú piensas: por proyecto, con iconos por servicio (Postgres, Redis, Nginx…) y acciones de grupo.</p>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v9"/></svg></span>
+          <h3>Agrupado como tú piensas</h3>
+          <p>Contenedores organizados por proyecto Compose, con el icono de cada servicio: Postgres, Redis, Nginx, Grafana… Los reconoces de un vistazo.</p>
         </div>
-        <div class="card">
-          <div class="icon">🚀</div>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.5-2 5-2 5s3.5-.5 5-2c.8-.8.8-2.2 0-3-.8-.8-2.2-.8-3 0z"/><path d="M12 15 9 12c2-5 6-9 12-9-.5 6-4 10-9 12z"/></svg></span>
           <h3>Despliega un Compose pegándolo</h3>
-          <p>Pega tu <code>docker-compose.yml</code>, dale un nombre y míralo levantarse con la salida en vivo — en local o en tu VPS.</p>
+          <p>Pega tu <span class="mono">docker-compose.yml</span>, dale un nombre y míralo levantarse con la salida en vivo. Se guarda en tu biblioteca para re-desplegarlo cuando quieras.</p>
         </div>
-        <div class="card">
-          <div class="icon">⌨️</div>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></span>
           <h3>Consola dentro del contenedor</h3>
-          <p>Terminal real (xterm) vía Docker API: bash o sh, redimensionable, con colores. Funciona idéntico contra servidores remotos.</p>
+          <p>Terminal real (xterm) vía Docker API: bash o sh, colores, resize. Funciona idéntico contra tus servidores remotos, a través del túnel.</p>
         </div>
-        <div class="card">
-          <div class="icon">📈</div>
-          <h3>Logs y stats en vivo</h3>
-          <p>Logs en streaming con búsqueda, CPU y RAM por contenedor, y badges de healthcheck que te avisan antes de que duela.</p>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16"/><path d="m7 14 4-4 3 3 5-6"/></svg></span>
+          <h3>Stats y salud en vivo</h3>
+          <p>CPU y RAM por contenedor en streaming, y badges de healthcheck: si algo lleva 9 días unhealthy, te lo grita antes de que duela.</p>
         </div>
-        <div class="card">
-          <div class="icon">🧹</div>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg></span>
+          <h3>Logs con búsqueda</h3>
+          <p>Streaming en vivo con filtro instantáneo y auto-scroll que se aparta cuando subes a leer. Sin teclear <span class="mono">docker logs -f</span> nunca más.</p>
+        </div>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18M9 3v18"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
           <h3>Imágenes, volúmenes y redes</h3>
-          <p>Las cuatro vistas completas, con limpieza guiada (<code>prune</code>) que te dice cuánto espacio liberaste. Y paleta ⌘K para todo.</p>
+          <p>Las cuatro vistas completas, con limpieza guiada: el <span class="mono">prune</span> te dice cuánto espacio liberaste. Adiós a los gigas fantasma.</p>
+        </div>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 20h.01M8 20h8"/></svg></span>
+          <h3>Barra de menú y ⌘K</h3>
+          <p>Tus proyectos viven en la barra de macOS: estado y acciones sin abrir la ventana. Y una paleta de comandos para saltar a cualquier cosa.</p>
+        </div>
+        <div class="card reveal">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
+          <h3>API nativa, no CLI</h3>
+          <p>Habla la Docker API con Rust (<span class="mono">bollard</span>): sin parsear salida de comandos, sin depender de la versión del CLI del servidor. Rápido y fiable.</p>
         </div>
       </div>
     </div>
@@ -236,83 +390,240 @@
 
   <section id="como-funciona">
     <div class="wrap">
-      <span class="kicker">Cómo funciona</span>
-      <h2>Cero agentes. Cero puertos abiertos.</h2>
-      <p class="section-sub">
-        Portainer te pide instalar un agente y exponer un puerto. Narwhal usa la conexión
-        SSH que ya tienes: reenvía el socket de Docker por un canal cifrado y habla la
-        API nativa. El servidor solo necesita tener Docker.
-      </p>
-      <div class="how">
-<pre>
-┌─ Narwhal ────────────────┐
-│  UI · logs · stats · exec │
-│      Docker API (Rust)    │
-└─────┬──────────────┬──────┘
-      │ socket local │ <span class="hl">túnel SSH (russh)</span>
-┌─────▼─────┐  ┌─────▼──────────────────┐
-│ Docker de │  │ /var/run/docker.sock    │
-│ tu máquina│  │ del servidor — <span class="hl">sin agente</span>│
-└───────────┘  └─────────────────────────┘
-</pre>
+      <p class="kicker reveal">Cómo funciona</p>
+      <h2 class="reveal">Cero agentes. Cero puertos abiertos.</h2>
+      <div class="steps">
+        <div class="step reveal">
+          <span class="num">01</span>
+          <h3>Conectas por SSH</h3>
+          <p>Con tu clave, tu <span class="mono">ssh-agent</span> o contraseña. La misma conexión que ya usas a diario — no hay nada que instalar en el servidor.</p>
+        </div>
+        <div class="step reveal">
+          <span class="num">02</span>
+          <h3>El socket viaja por el túnel</h3>
+          <p>Narwhal reenvía <span class="mono">/var/run/docker.sock</span> del servidor por un canal SSH cifrado. El equivalente a <span class="mono">ssh -L</span>, automático.</p>
+        </div>
+        <div class="step reveal">
+          <span class="num">03</span>
+          <h3>Misma API, cualquier host</h3>
+          <p>La app habla la Docker API nativa contra ese túnel. Por eso todo — consola, stats, compose — funciona idéntico en local y en remoto.</p>
+        </div>
       </div>
+      <p class="security-note reveal">
+        <strong>Portainer necesita un agente y un puerto expuesto.</strong> Narwhal solo necesita el SSH que ya tienes.
+      </p>
     </div>
   </section>
 
   <section id="seguridad">
     <div class="wrap">
-      <span class="kicker">Seguridad</span>
-      <h2>Tus secretos no se guardan. Punto.</h2>
-      <div class="grid">
-        <div class="card">
-          <div class="icon">🔑</div>
+      <p class="kicker reveal">Seguridad</p>
+      <h2 class="reveal">Tus secretos no se guardan. Punto.</h2>
+      <div class="steps">
+        <div class="step reveal">
+          <span class="num">01</span>
           <h3>Sin secretos en disco</h3>
           <p>Los hosts se guardan sin contraseñas. Password o passphrase se piden al conectar y viven solo en memoria durante la sesión.</p>
         </div>
-        <div class="card">
-          <div class="icon">🛡️</div>
+        <div class="step reveal">
+          <span class="num">02</span>
           <h3>Verificación TOFU</h3>
-          <p>Como OpenSSH: la primera conexión registra la huella del servidor. Si algún día cambia, Narwhal corta y te avisa de posible MITM.</p>
+          <p>Como OpenSSH: la primera conexión registra la huella del servidor y las siguientes la verifican. Si cambia, Narwhal corta y te avisa de posible MITM.</p>
         </div>
-        <div class="card">
-          <div class="icon">🦀</div>
+        <div class="step reveal">
+          <span class="num">03</span>
           <h3>Rust de punta a punta</h3>
-          <p>SSH con <code>russh</code> (Rust puro), Docker API con <code>bollard</code>, app nativa con Tauri 2. Ligera de verdad, sin Electron.</p>
+          <p>SSH con <span class="mono">russh</span>, Docker API con <span class="mono">bollard</span>, app nativa con Tauri 2. Ligera de verdad, sin Electron.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="descargar">
+  <section id="plataformas">
     <div class="wrap">
-      <span class="kicker">Descargar</span>
-      <h2>Gratis, open source, tres plataformas.</h2>
-      <div class="dl-grid">
-        <a class="dl" href="https://github.com/chefibecerra/narwhal/releases/latest">
-          <div class="os"></div>
-          <h3>macOS</h3>
-          <p>Apple Silicon e Intel · .dmg</p>
-        </a>
-        <a class="dl" href="https://github.com/chefibecerra/narwhal/releases/latest">
-          <div class="os">🐧</div>
-          <h3>Linux</h3>
-          <p>AppImage y .deb</p>
-        </a>
-        <a class="dl" href="https://github.com/chefibecerra/narwhal/releases/latest">
-          <div class="os">🪟</div>
-          <h3>Windows</h3>
-          <p>Instalador y portable</p>
-        </a>
+      <p class="kicker reveal">Descargas <span id="latest-tag"></span></p>
+      <h2 class="reveal">Elige tu plataforma</h2>
+      <div id="platform-list">
+        <p class="reveal group-label">Instaladores</p>
+        <div class="platforms reveal">
+          <a class="platform" data-os="mac" href="#">macOS <span class="dim">.dmg</span></a>
+          <a class="platform" data-os="windows" href="#">Windows <span class="dim">.exe</span></a>
+          <a class="platform" data-os="linux-deb" href="#">Linux <span class="dim">.deb</span></a>
+        </div>
+        <p class="reveal group-label" style="margin-top: 26px">Portables — sin instalar</p>
+        <div class="platforms reveal">
+          <a class="platform" data-os="mac-portable" href="#">macOS <span class="dim">.app</span></a>
+          <a class="platform" data-os="windows-portable" href="#">Windows <span class="dim">.exe portable</span></a>
+          <a class="platform" data-os="linux" href="#">Linux <span class="dim">AppImage</span></a>
+        </div>
       </div>
     </div>
   </section>
 
   <footer>
-    <div>Narwhal — el unicornio del mar que navega entre tus contenedores.</div>
-    <div>
-      Hermano de <a href="https://github.com/chefibecerra/ratatoskr">Ratatoskr</a> ·
-      <a href="https://github.com/chefibecerra/narwhal">GitHub</a>
+    <div class="wrap">
+      <p>El unicornio del mar que navega entre tus contenedores · hermano de <a href="https://github.com/chefibecerra/ratatoskr">Ratatoskr</a> · <a id="repo-link" href="#">Código en GitHub</a></p>
     </div>
   </footer>
+
+  <script>
+    const GITHUB_REPO = "chefibecerra/narwhal";
+    const RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases`;
+    const API_LATEST = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+
+    document.getElementById("repo-link").href = `https://github.com/${GITHUB_REPO}`;
+
+    // ---------- Detección de sistema operativo ----------
+    const ua = navigator.userAgent;
+    const os = /Mac/i.test(ua) ? "mac"
+      : /Win/i.test(ua) ? "windows"
+      : /Linux|X11/i.test(ua) ? "linux"
+      : null;
+    const OS_LABEL = { mac: "macOS", windows: "Windows", linux: "Linux" };
+
+    const MATCHERS = {
+      mac: (n) => /\.dmg$/i.test(n),
+      windows: (n) => /-setup\.exe$|\.msi$/i.test(n),
+      "linux-deb": (n) => /\.deb$/i.test(n),
+      "mac-portable": (n) => /\.app\.tar\.gz$/i.test(n),
+      "windows-portable": (n) => /_portable\.exe$/i.test(n),
+      linux: (n) => /\.AppImage$/i.test(n),
+    };
+
+    function pickAsset(assets, key) {
+      const candidates = assets.filter((a) => MATCHERS[key](a.name));
+      if (candidates.length === 0) return null;
+      if (key === "mac" || key === "mac-portable") {
+        return candidates.find((a) => /aarch64|arm64/i.test(a.name)) ?? candidates[0];
+      }
+      return candidates[0];
+    }
+
+    async function wireDownloads() {
+      const btn = document.getElementById("download-btn");
+      const label = document.getElementById("download-label");
+      const detected = document.getElementById("detected-os");
+      if (os) label.textContent = `Descargar para ${OS_LABEL[os]}`;
+
+      try {
+        const res = await fetch(API_LATEST);
+        if (!res.ok) throw new Error(String(res.status));
+        const release = await res.json();
+        const assets = release.assets ?? [];
+        const tagEl = document.getElementById("latest-tag");
+        if (tagEl) tagEl.textContent = `· ${release.tag_name}`;
+        const heroV = document.getElementById("hero-version");
+        if (heroV) heroV.textContent = ` · ${release.tag_name}`;
+        for (const link of document.querySelectorAll("[data-os]")) {
+          const asset = pickAsset(assets, link.dataset.os);
+          link.href = asset ? asset.browser_download_url : RELEASES_URL;
+        }
+        if (os) {
+          const asset = pickAsset(assets, os);
+          if (asset) {
+            btn.href = asset.browser_download_url;
+            detected.textContent = `${release.tag_name} · ${OS_LABEL[os]} detectado · `;
+          }
+        }
+      } catch {
+        btn.href = RELEASES_URL;
+        for (const link of document.querySelectorAll("[data-os]")) {
+          link.href = RELEASES_URL;
+        }
+      }
+    }
+    wireDownloads();
+
+    // ---------- Mockup: la misma UI, host local ↔ VPS remoto ----------
+    const HOSTS = {
+      local: {
+        tab: "Esta máquina",
+        status: "Docker 29.4 · local",
+        groups: [
+          {
+            name: "mi-stack", counts: "3/3",
+            rows: [
+              { icon: "🐘", name: "mi-stack-postgres", img: "postgres:16-alpine", chips: [["5433", "5432"]], st: "" },
+              { icon: "♦️", name: "mi-stack-redis", img: "redis:7-alpine", chips: [["6380", "6379"]], st: "" },
+              { icon: "🌐", name: "mi-stack-api", img: "node:22-alpine", chips: [["3000", "3000"]], st: "" },
+            ],
+          },
+        ],
+        running: "3 en ejecución",
+      },
+      vps: {
+        tab: "vps-prod · SSH",
+        status: "Docker 28.1 · deploy@vps-prod",
+        groups: [
+          {
+            name: "prod", counts: "3/4",
+            rows: [
+              { icon: "🚦", name: "prod-nginx", img: "nginx:alpine", chips: [["80", "80"], ["443", "443"]], st: "" },
+              { icon: "🌐", name: "prod-api", img: "ghcr.io/acme/api:1.4", chips: [["3000", "3000"]], st: "" },
+              { icon: "📬", name: "prod-queue", img: "rabbitmq:3", chips: [], st: "warn" },
+              { icon: "⚙️", name: "prod-worker", img: "ghcr.io/acme/worker:1.4", chips: [], st: "off" },
+            ],
+          },
+        ],
+        running: "3 en ejecución",
+      },
+    };
+
+    const clist = document.getElementById("clist");
+
+    function renderHost(key) {
+      const host = HOSTS[key];
+      document.getElementById("tab-host").textContent = host.tab;
+      document.getElementById("status-host").textContent = host.status;
+      document.getElementById("head-count").textContent = host.running;
+      document.getElementById("host-local").classList.toggle("sel", key === "local");
+      document.getElementById("host-vps").classList.toggle("sel", key === "vps");
+      document.getElementById("dot-local").style.display = key === "local" ? "" : "none";
+      document.getElementById("dot-vps").style.display = key === "vps" ? "" : "none";
+
+      let html = "";
+      let delay = 0;
+      for (const group of host.groups) {
+        html += `<div class="cgroup"><span style="color:var(--faint)">▾</span> ${group.name}<span class="count mono">${group.counts}</span></div>`;
+        for (const row of group.rows) {
+          const chips = row.chips
+            .map(([pub, priv]) => `<span class="chip"><b>${pub}</b>→${priv}</span>`)
+            .join("");
+          html += `
+            <div class="crow" style="animation-delay:${delay}ms">
+              <span class="cicon">${row.icon}<span class="st ${row.st}"></span></span>
+              <span class="cmeta"><span class="cname">${row.name}</span><br /><span class="cimg mono">${row.img}</span></span>
+              <span class="chips">${chips}</span>
+            </div>`;
+          delay += 70;
+        }
+      }
+      clist.innerHTML = html;
+    }
+
+    renderHost("local");
+    let current = "local";
+    setInterval(() => {
+      current = current === "local" ? "vps" : "local";
+      renderHost(current);
+    }, 4200);
+
+    // ---------- Revelado al hacer scroll ----------
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.12 },
+    );
+    document.querySelectorAll(".reveal").forEach((el, i) => {
+      el.style.transitionDelay = `${Math.min(i % 6, 4) * 60}ms`;
+      observer.observe(el);
+    });
+  </script>
 </body>
 </html>
