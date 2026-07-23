@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 
+use crate::commands::DockerState;
 use crate::store::{read_collection, write_collection};
 
 const FILE: &str = "hosts.json";
@@ -48,9 +49,16 @@ pub fn hosts_list(app: AppHandle) -> Result<Vec<HostConfig>, String> {
 }
 
 #[tauri::command]
-pub fn host_save(app: AppHandle, mut host: HostConfig) -> Result<HostConfig, String> {
+pub async fn host_save(
+    app: AppHandle,
+    state: State<'_, DockerState>,
+    mut host: HostConfig,
+) -> Result<HostConfig, String> {
     if host.id.is_empty() {
         host.id = uuid::Uuid::new_v4().to_string();
+    } else {
+        // config nueva = conexión y secreto viejos ya no valen
+        crate::commands::evict(&state, &host.id).await;
     }
     let mut hosts: Vec<HostConfig> = read_collection(&app, FILE)?;
     match hosts.iter_mut().find(|h| h.id == host.id) {
@@ -62,7 +70,12 @@ pub fn host_save(app: AppHandle, mut host: HostConfig) -> Result<HostConfig, Str
 }
 
 #[tauri::command]
-pub fn host_delete(app: AppHandle, id: String) -> Result<(), String> {
+pub async fn host_delete(
+    app: AppHandle,
+    state: State<'_, DockerState>,
+    id: String,
+) -> Result<(), String> {
+    crate::commands::evict(&state, &id).await;
     let mut hosts: Vec<HostConfig> = read_collection(&app, FILE)?;
     hosts.retain(|h| h.id != id);
     write_collection(&app, FILE, &hosts)

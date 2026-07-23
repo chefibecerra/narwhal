@@ -40,11 +40,8 @@ export function Sidebar() {
 
   const handleConnect = async (h: HostConfig) => {
     if (activeHostId === h.id && status === "connected") return;
-    // host de contraseña: se pide directamente, sin intentar claves antes
-    if (h.authKind === "password") {
-      setAsk({ host: h, passphrase: false });
-      return;
-    }
+    // siempre se intenta primero: el backend puede tener la conexión viva
+    // o el secreto recordado en RAM y entrar sin pedir nada
     const err = await connectTo(h.id);
     if (!err) return;
     // el backend pide credenciales con un prefijo en el error

@@ -11,39 +11,81 @@ use crate::docker::{
     NetworkInfo, VolumeInfo,
 };
 
+const LOCAL_KEY: &str = "local";
+
 #[derive(Default)]
 pub struct DockerState {
-    host: Mutex<Option<Arc<dyn DockerHost>>>,
+    /// host activo (clave del pool)
+    active: Mutex<Option<String>>,
+    /// conexiones vivas por host: cambiar de host no las tira, así volver
+    /// es instantáneo y sin volver a pedir credenciales
+    pool: Mutex<HashMap<String, Arc<dyn DockerHost>>>,
+    /// secretos SOLO en RAM (como ssh-agent): mueren al cerrar la app
+    secrets: Mutex<HashMap<String, String>>,
     log_streams: Mutex<HashMap<String, tauri::async_runtime::JoinHandle<()>>>,
     exec_sessions: Mutex<HashMap<String, mpsc::Sender<ExecOp>>>,
 }
 
 pub(crate) async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
-    state
-        .host
+    let active = state
+        .active
         .lock()
         .await
         .clone()
+        .ok_or_else(|| "Sin conexión con Docker".to_string())?;
+    state
+        .pool
+        .lock()
+        .await
+        .get(&active)
+        .cloned()
         .ok_or_else(|| "Sin conexión con Docker".to_string())
 }
 
 /// Al cambiar de host los streams (logs, stats) y consolas del anterior
-/// quedan huérfanos: se cortan todos antes de instalar la conexión nueva.
-async fn install_host(state: &DockerState, new_host: Arc<dyn DockerHost>) {
+/// quedan huérfanos en la UI: se cortan todos al activar el nuevo.
+async fn activate(state: &DockerState, key: &str) {
     for (_, task) in state.log_streams.lock().await.drain() {
         task.abort();
     }
     // soltar los senders termina los bucles de exec_shell
     state.exec_sessions.lock().await.clear();
-    *state.host.lock().await = Some(new_host);
+    *state.active.lock().await = Some(key.to_string());
+}
+
+/// Saca a un host del pool y olvida su secreto (al editarlo o borrarlo).
+pub(crate) async fn evict(state: &DockerState, id: &str) {
+    state.pool.lock().await.remove(id);
+    state.secrets.lock().await.remove(id);
+}
+
+/// Conexión del pool que sigue respondiendo, o None (y se purga si murió).
+async fn live_from_pool(state: &DockerState, key: &str) -> Option<(Arc<dyn DockerHost>, DockerInfo)> {
+    let existing = state.pool.lock().await.get(key).cloned()?;
+    match existing.info().await {
+        Ok(info) => Some((existing, info)),
+        Err(_) => {
+            state.pool.lock().await.remove(key);
+            None
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn docker_connect_local(state: State<'_, DockerState>) -> Result<DockerInfo, String> {
+    if let Some((_, info)) = live_from_pool(&state, LOCAL_KEY).await {
+        activate(&state, LOCAL_KEY).await;
+        return Ok(info);
+    }
     let local = BollardHost::local()?;
     // valida que el demonio responde antes de dar la conexión por buena
     let info = local.info().await?;
-    install_host(&state, Arc::new(local)).await;
+    state
+        .pool
+        .lock()
+        .await
+        .insert(LOCAL_KEY.into(), Arc::new(local));
+    activate(&state, LOCAL_KEY).await;
     Ok(info)
 }
 
@@ -54,11 +96,48 @@ pub async fn docker_connect_remote(
     host_id: String,
     secret: Option<String>,
 ) -> Result<DockerInfo, String> {
+    // 1) conexión viva de una visita anterior: ni SSH ni credenciales
+    if let Some((_, info)) = live_from_pool(&state, &host_id).await {
+        activate(&state, &host_id).await;
+        return Ok(info);
+    }
+
+    // 2) reconexión: si el usuario no aporta secreto, probar el recordado
     let cfg = crate::hosts::get(&app, &host_id)?;
-    let remote = crate::docker::remote::connect(&app, &cfg, secret).await?;
-    let info = remote.info().await?;
-    install_host(&state, Arc::new(remote)).await;
-    Ok(info)
+    let provided = secret.is_some();
+    let secret = match secret {
+        Some(s) => Some(s),
+        None => state.secrets.lock().await.get(&host_id).cloned(),
+    };
+    let used_cached = !provided && secret.is_some();
+
+    match crate::docker::remote::connect(&app, &cfg, secret.clone()).await {
+        Ok(remote) => {
+            let info = remote.info().await?;
+            if provided {
+                // funcionó: se recuerda para reconexiones, solo en RAM
+                state
+                    .secrets
+                    .lock()
+                    .await
+                    .insert(host_id.clone(), secret.expect("provided"));
+            }
+            state
+                .pool
+                .lock()
+                .await
+                .insert(host_id.clone(), Arc::new(remote));
+            activate(&state, &host_id).await;
+            Ok(info)
+        }
+        Err(e) => {
+            // el secreto recordado ya no vale (cambió la clave/contraseña)
+            if used_cached && (e.starts_with("auth:") || e.starts_with("passphrase:")) {
+                state.secrets.lock().await.remove(&host_id);
+            }
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
