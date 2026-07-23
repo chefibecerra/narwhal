@@ -58,6 +58,8 @@ pub fn run() {
             commands::docker_remove,
             commands::docker_logs_start,
             commands::docker_logs_stop,
+            commands::docker_stats_start,
+            commands::docker_stats_stop,
             commands::docker_compose_up,
             hosts::hosts_list,
             hosts::host_save,

@@ -6,7 +6,7 @@ use tauri::{AppHandle, State};
 use tokio::sync::Mutex;
 
 use crate::docker::host::BollardHost;
-use crate::docker::{ContainerInfo, DockerHost, DockerInfo, LogChunk};
+use crate::docker::{ContainerInfo, ContainerStats, DockerHost, DockerInfo, LogChunk};
 
 #[derive(Default)]
 pub struct DockerState {
@@ -120,6 +120,45 @@ pub async fn docker_logs_start(
 #[tauri::command]
 pub async fn docker_logs_stop(state: State<'_, DockerState>, id: String) -> Result<(), String> {
     if let Some(task) = state.log_streams.lock().await.remove(&id) {
+        task.abort();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn docker_stats_start(
+    state: State<'_, DockerState>,
+    id: String,
+    on_stats: Channel<ContainerStats>,
+) -> Result<(), String> {
+    let h = host(&state).await?;
+
+    // clave con prefijo: convive con los streams de logs en el mismo mapa
+    // y se corta igual que ellos al cambiar de host
+    let key = format!("stats:{id}");
+    let mut streams = state.log_streams.lock().await;
+    if let Some(prev) = streams.remove(&key) {
+        prev.abort();
+    }
+
+    let container_id = id.clone();
+    let task = tauri::async_runtime::spawn(async move {
+        let _ = h
+            .stats(
+                &container_id,
+                Box::new(move |stats| {
+                    let _ = on_stats.send(stats);
+                }),
+            )
+            .await;
+    });
+    streams.insert(key, task);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn docker_stats_stop(state: State<'_, DockerState>, id: String) -> Result<(), String> {
+    if let Some(task) = state.log_streams.lock().await.remove(&format!("stats:{id}")) {
         task.abort();
     }
     Ok(())

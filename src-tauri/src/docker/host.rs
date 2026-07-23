@@ -1,13 +1,16 @@
 use async_trait::async_trait;
 use bollard::container::{
     ListContainersOptions, LogOutput, LogsOptions, RemoveContainerOptions,
-    RestartContainerOptions, StartContainerOptions, StopContainerOptions,
+    RestartContainerOptions, StartContainerOptions, StatsOptions, StopContainerOptions,
 };
 use bollard::Docker;
 use futures_util::StreamExt;
 
 use super::tunnel::SocketTunnel;
-use super::{ContainerInfo, DockerHost, DockerInfo, LogChunk, LogSink, PortMapping, Result};
+use super::{
+    ContainerInfo, ContainerStats, DockerHost, DockerInfo, LogChunk, LogSink, PortMapping,
+    Result, StatsSink,
+};
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
 
@@ -152,6 +155,45 @@ impl DockerHost for BollardHost {
             on_chunk(LogChunk {
                 line: String::from_utf8_lossy(&message).into_owned(),
                 stream: stream_name.into(),
+            });
+        }
+        Ok(())
+    }
+
+    async fn stats(&self, id: &str, on_stats: StatsSink) -> Result<()> {
+        let opts = StatsOptions {
+            stream: true,
+            one_shot: false,
+        };
+        let mut stream = self.docker.stats(id, Some(opts));
+        while let Some(item) = stream.next().await {
+            let s = item.map_err(|e| e.to_string())?;
+
+            // fórmula de `docker stats`: delta de uso del contenedor sobre el
+            // delta de CPU total del sistema, escalado al nº de CPUs
+            let cpu_delta = s
+                .cpu_stats
+                .cpu_usage
+                .total_usage
+                .saturating_sub(s.precpu_stats.cpu_usage.total_usage)
+                as f64;
+            let system_delta = s
+                .cpu_stats
+                .system_cpu_usage
+                .unwrap_or(0)
+                .saturating_sub(s.precpu_stats.system_cpu_usage.unwrap_or(0))
+                as f64;
+            let cpus = s.cpu_stats.online_cpus.unwrap_or(1) as f64;
+            let cpu_percent = if system_delta > 0.0 {
+                (cpu_delta / system_delta) * cpus * 100.0
+            } else {
+                0.0
+            };
+
+            on_stats(ContainerStats {
+                cpu_percent,
+                memory_used: s.memory_stats.usage.unwrap_or(0),
+                memory_limit: s.memory_stats.limit.unwrap_or(0),
             });
         }
         Ok(())

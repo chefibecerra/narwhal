@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type {
   ContainerInfo,
+  ContainerStats,
   DockerInfo,
   HostConfig,
   LogChunk,
@@ -49,6 +50,18 @@ export const startLogs = (
 };
 
 export const stopLogs = (id: string) => invoke<void>("docker_logs_stop", { id });
+
+export const startStats = (
+  id: string,
+  onStats: (stats: ContainerStats) => void,
+) => {
+  const channel = new Channel<ContainerStats>();
+  channel.onmessage = onStats;
+  return invoke<void>("docker_stats_start", { id, onStats: channel });
+};
+
+export const stopStats = (id: string) =>
+  invoke<void>("docker_stats_stop", { id });
 
 /** resuelve al terminar `docker compose up -d`; la salida llega por el canal */
 export const composeUp = (

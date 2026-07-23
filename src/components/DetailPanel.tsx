@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Play, RotateCw, Square, Trash2 } from "lucide-react";
 
@@ -15,9 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogsView } from "@/components/LogsView";
+import { formatBytes } from "@/lib/docker";
+import * as ipc from "@/lib/ipc";
 import { detectService, ServiceGlyph } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { useContainers } from "@/stores/containers";
+import type { ContainerStats } from "@/types";
 
 const DOT_BY_STATE: Record<string, string> = {
   running: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]",
@@ -158,7 +162,8 @@ export function DetailPanel() {
           value="info"
           className="min-h-0 flex-1 overflow-y-auto overscroll-none"
         >
-          <dl className="space-y-3 p-4 text-xs">
+          {running && <LiveStats key={c.id} id={c.id} />}
+          <dl className="space-y-3 p-4 pt-2 text-xs">
             <InfoRow label="Imagen" value={c.image} mono />
             <InfoRow label="ID" value={c.id.slice(0, 12)} mono />
             {c.composeProject && (
@@ -207,6 +212,67 @@ export function DetailPanel() {
         </TabsContent>
       </Tabs>
     </aside>
+  );
+}
+
+function LiveStats({ id }: { id: string }) {
+  const [stats, setStats] = useState<ContainerStats | null>(null);
+
+  useEffect(() => {
+    void ipc.startStats(id, setStats);
+    return () => void ipc.stopStats(id);
+  }, [id]);
+
+  const memPercent =
+    stats && stats.memoryLimit > 0
+      ? (stats.memoryUsed / stats.memoryLimit) * 100
+      : 0;
+
+  return (
+    <div className="space-y-2.5 px-4 pt-3">
+      <Meter
+        label="CPU"
+        value={stats ? `${stats.cpuPercent.toFixed(1)} %` : "—"}
+        percent={stats ? Math.min(stats.cpuPercent, 100) : 0}
+      />
+      <Meter
+        label="RAM"
+        value={
+          stats
+            ? `${formatBytes(stats.memoryUsed)} / ${formatBytes(stats.memoryLimit)}`
+            : "—"
+        }
+        percent={memPercent}
+      />
+    </div>
+  );
+}
+
+function Meter({
+  label,
+  value,
+  percent,
+}: {
+  label: string;
+  value: string;
+  percent: number;
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between text-[11px]">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-mono tabular-nums">{value}</span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-secondary">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500",
+            percent > 85 ? "bg-amber-400" : "bg-emerald-400/80",
+          )}
+          style={{ width: `${Math.max(percent, 1)}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -29,6 +29,12 @@ export interface LogChunk {
   stream: "stdout" | "stderr";
 }
 
+export interface ContainerStats {
+  cpuPercent: number;
+  memoryUsed: number;
+  memoryLimit: number;
+}
+
 /** servidor remoto guardado; nunca contiene secretos */
 export interface HostConfig {
   id: string;

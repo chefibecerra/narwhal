@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { healthOf } from "@/lib/docker";
 import { ServiceGlyph } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { useContainers } from "@/stores/containers";
@@ -29,6 +30,7 @@ export function ContainerRow({ container: c }: { container: ContainerInfo }) {
   const selected = useContainers((s) => s.selectedId === c.id);
   const busy = useContainers((s) => Boolean(s.busy[c.id]));
   const running = c.state === "running";
+  const health = healthOf(c.status);
 
   return (
     <div
@@ -46,18 +48,27 @@ export function ContainerRow({ container: c }: { container: ContainerInfo }) {
         <span
           className={cn(
             "absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-background",
-            DOT_BY_STATE[c.state] ?? "bg-muted-foreground/30",
+            health === "unhealthy"
+              ? "bg-amber-400"
+              : (DOT_BY_STATE[c.state] ?? "bg-muted-foreground/30"),
           )}
         />
       </span>
       <div className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate text-[13px] font-medium",
-            !running && "text-muted-foreground",
+        <span className="flex items-center gap-1.5">
+          <span
+            className={cn(
+              "truncate text-[13px] font-medium",
+              !running && "text-muted-foreground",
+            )}
+          >
+            {c.name}
+          </span>
+          {health === "unhealthy" && (
+            <span className="shrink-0 rounded border border-amber-400/40 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-amber-400">
+              unhealthy
+            </span>
           )}
-        >
-          {c.name}
         </span>
         <span className="block truncate text-[11px] text-muted-foreground/80">
           {c.image}
