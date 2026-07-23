@@ -12,6 +12,16 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+# Binario mínimo en release: LTO completo + una unidad de codegen permiten
+# optimizar entre crates; "s" prioriza tamaño; strip quita símbolos de debug;
+# panic=abort ahorra el código de unwinding. Solo encarece el build de CI.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
+
 [dependencies]
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
