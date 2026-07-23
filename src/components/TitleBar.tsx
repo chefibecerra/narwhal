@@ -25,9 +25,9 @@ export function TitleBar() {
       {/* posición absoluta calzada con los semáforos nativos: su centro real
           queda a ~18px (medido en pantalla, no donde dice la doc); misma
           geometría que el mockup de la web: hueco 14px, padding 5x12, radio 7 */}
-      <div className="pointer-events-none absolute left-[88px] top-[10px] flex max-w-[50%] items-center gap-[7px] rounded-[7px] bg-secondary px-3 py-[5px]">
+      <div className="pointer-events-none absolute left-[88px] top-[6px] flex max-w-[50%] items-center gap-2 rounded-[7px] bg-secondary px-3.5 py-[7px]">
         <span className={cn("size-1.5 shrink-0 rounded-full", statusDot)} />
-        <span className="truncate text-xs font-medium leading-none">
+        <span className="truncate text-[13px] font-medium leading-none">
           {activeName}
         </span>
       </div>
