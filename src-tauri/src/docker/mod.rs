@@ -1,0 +1,70 @@
+pub mod compose;
+pub mod host;
+pub mod remote;
+pub mod tunnel;
+
+use async_trait::async_trait;
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortMapping {
+    pub private_port: u16,
+    pub public_port: Option<u16>,
+    pub protocol: String,
+    pub ip: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerInfo {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+    /// "running", "exited", "paused", "created", "restarting", "dead"
+    pub state: String,
+    /// texto humano de Docker: "Up 3 hours", "Exited (0) 2 days ago"
+    pub status: String,
+    pub created: i64,
+    pub ports: Vec<PortMapping>,
+    pub compose_project: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerInfo {
+    pub version: String,
+    pub api_version: String,
+    pub os: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogChunk {
+    pub line: String,
+    /// "stdout" | "stderr"
+    pub stream: String,
+}
+
+pub type Result<T> = std::result::Result<T, String>;
+
+pub type LogSink = Box<dyn Fn(LogChunk) + Send + Sync>;
+
+/// La UI habla contra este trait y no sabe de dónde viene Docker:
+/// el socket local o el mismo socket tunelizado por SSH.
+#[async_trait]
+pub trait DockerHost: Send + Sync {
+    async fn info(&self) -> Result<DockerInfo>;
+    async fn list_containers(&self) -> Result<Vec<ContainerInfo>>;
+    async fn start(&self, id: &str) -> Result<()>;
+    async fn stop(&self, id: &str) -> Result<()>;
+    async fn restart(&self, id: &str) -> Result<()>;
+    async fn remove(&self, id: &str, force: bool) -> Result<()>;
+    /// Sigue los logs del contenedor llamando a `on_chunk` por cada trozo.
+    /// No retorna hasta que el stream se corta o la tarea que lo envuelve se aborta.
+    async fn logs(&self, id: &str, tail: u32, on_chunk: LogSink) -> Result<()>;
+    /// `docker compose up -d` con el YAML dado, streameando la salida.
+    /// Compose es una herramienta de cliente, no parte de la API: local usa el
+    /// CLI de la máquina; remoto sube el YAML por SSH y lo ejecuta allí.
+    async fn compose_up(&self, project: &str, yaml: &str, on_output: LogSink) -> Result<()>;
+}

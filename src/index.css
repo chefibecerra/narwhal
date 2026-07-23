@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.2 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.55 0 0);
+}
+
+.dark {
+  /* --app-alpha lo maneja el setting de opacidad; el blur lo pone macOS */
+  --background: oklch(0.155 0 0 / var(--app-alpha, 1));
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.93 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.93 0 0);
+  --primary: oklch(0.93 0 0);
+  --primary-foreground: oklch(0.155 0 0);
+  --secondary: oklch(0.23 0 0);
+  --secondary-foreground: oklch(0.93 0 0);
+  --muted: oklch(0.23 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.23 0 0);
+  --accent-foreground: oklch(0.93 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(1 0 0 / 7%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(1 0 0 / 30%);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* fondo del área de terminal: sigue al tema elegido (--terminal-rgb) */
+  --color-terminal: rgb(var(--terminal-rgb, 12 12 13) / var(--app-alpha, 1));
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  /* Sin rebote de página en WKWebView: el scroll de un panel interno no
+     debe encadenarse al documento (efecto "web que se corta por abajo"). */
+  html,
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  /* Ventana transparente: el fondo lo pinta #root con las esquinas
+     redondeadas al radio de macOS; si lo pintara body (cuadrado), el
+     escritorio se colaría en la curva de las esquinas. */
+  body {
+    @apply text-foreground antialiased;
+    background: transparent;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "SF Pro Text", ui-sans-serif,
+      system-ui, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #root {
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  input,
+  textarea,
+  .xterm {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 10%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 20%);
+  }
+
+  .xterm .xterm-viewport {
+    scrollbar-width: thin;
+  }
+
+  /* entrada escalonada de filas en listas (hasta 12 elementos visibles) */
+  .stagger > * {
+    animation: row-in 0.32s ease-out both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 24ms; }
+  .stagger > *:nth-child(3) { animation-delay: 48ms; }
+  .stagger > *:nth-child(4) { animation-delay: 72ms; }
+  .stagger > *:nth-child(5) { animation-delay: 96ms; }
+  .stagger > *:nth-child(6) { animation-delay: 120ms; }
+  .stagger > *:nth-child(7) { animation-delay: 144ms; }
+  .stagger > *:nth-child(8) { animation-delay: 168ms; }
+  .stagger > *:nth-child(n + 9) { animation-delay: 192ms; }
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stagger > * {
+      animation: none;
+    }
+  }
+
+  /* pulso de "sesión viva": anillo que se expande y desvanece */
+  .status-live {
+    animation: status-live 2.4s ease-in-out infinite;
+  }
+  @keyframes status-live {
+    0% {
+      box-shadow: 0 0 0 0 rgb(52 211 153 / 0.45);
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 5px rgb(52 211 153 / 0);
+    }
+  }
+}
