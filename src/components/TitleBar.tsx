@@ -22,9 +22,11 @@ export function TitleBar() {
       data-tauri-drag-region
       className="flex h-12 shrink-0 items-center gap-2 border-b border-border pl-20 pr-3"
     >
-      <div className="pointer-events-none flex min-w-0 items-center gap-2 rounded-lg bg-secondary/70 px-2.5 py-1">
+      <div className="pointer-events-none flex min-w-0 items-center gap-2 rounded-lg bg-secondary px-3 py-[5px]">
         <span className={cn("size-1.5 shrink-0 rounded-full", statusDot)} />
-        <span className="truncate text-xs font-medium">{activeName}</span>
+        <span className="truncate text-xs font-medium leading-none">
+          {activeName}
+        </span>
       </div>
     </div>
   );
