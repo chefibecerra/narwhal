@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import {
+  ArrowUpCircle,
   Container,
   HardDrive,
   Laptop,
@@ -8,6 +9,9 @@ import {
   Rocket,
   Server,
 } from "lucide-react";
+import { toast } from "sonner";
+
+import { useUpdater } from "@/stores/updater";
 
 import {
   CommandDialog,
@@ -116,6 +120,21 @@ export function CommandPalette() {
             onSelect={() => close(() => setComposeOpen(true))}
           >
             <Rocket className="size-4" /> Desplegar Compose…
+          </CommandItem>
+          <CommandItem
+            value="buscar actualizaciones update version"
+            onSelect={() =>
+              close(() => {
+                void useUpdater
+                  .getState()
+                  .checkManual()
+                  .then((found) => {
+                    if (!found) toast.success("Estás en la última versión");
+                  });
+              })
+            }
+          >
+            <ArrowUpCircle className="size-4" /> Buscar actualizaciones
           </CommandItem>
         </CommandGroup>
       </CommandList>

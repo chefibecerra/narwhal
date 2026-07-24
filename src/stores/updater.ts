@@ -13,6 +13,8 @@ interface UpdaterState {
   error: string | null;
   /** consulta silenciosa; si hay versión nueva pasa a "available" */
   checkOnStartup: () => Promise<void>;
+  /** comprobación manual: informa aunque esté al día */
+  checkManual: () => Promise<boolean>;
   install: () => Promise<void>;
   dismiss: () => void;
 }
@@ -43,6 +45,25 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       }
     } catch {
       // en silencio: un fallo de red al arrancar no molesta al usuario
+    }
+  },
+
+  checkManual: async () => {
+    try {
+      const update = await lookup();
+      if (update) {
+        set({
+          phase: "available",
+          update,
+          version: update.version,
+          notes: update.body ?? null,
+        });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      set({ phase: "error", error: String(e) });
+      return false;
     }
   },
 
