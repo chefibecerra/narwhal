@@ -50,6 +50,26 @@ fn compose_script_windows(file: &str, project: &str) -> String {
     )
 }
 
+/// pull + up -d con el archivo original: "traer la última versión".
+fn update_script(file: &str, project: &str) -> String {
+    format!(
+        "if docker compose version >/dev/null 2>&1; then \
+           docker compose -f '{file}' -p '{project}' pull 2>&1 && \
+           docker compose -f '{file}' -p '{project}' up -d --remove-orphans 2>&1; \
+         else \
+           docker-compose -f '{file}' -p '{project}' pull 2>&1 && \
+           docker-compose -f '{file}' -p '{project}' up -d --remove-orphans 2>&1; \
+         fi"
+    )
+}
+
+#[cfg(windows)]
+fn update_script_windows(file: &str, project: &str) -> String {
+    format!(
+        "docker compose -f \"{file}\" -p \"{project}\" pull 2>&1 && docker compose -f \"{file}\" -p \"{project}\" up -d --remove-orphans 2>&1"
+    )
+}
+
 #[cfg(windows)]
 fn action_script_windows(project: &str, action: &str) -> String {
     format!(
@@ -92,6 +112,52 @@ pub async fn action_remote(
     on_output: &LogSink,
 ) -> Result<()> {
     run_remote(session, &action_script(project, action), on_output).await
+}
+
+pub async fn update_local(file: &str, project: &str, on_output: &LogSink) -> Result<()> {
+    #[cfg(unix)]
+    let script = update_script(file, project);
+    #[cfg(windows)]
+    let script = update_script_windows(file, project);
+    run_local(&script, on_output).await
+}
+
+pub async fn update_remote(
+    session: &Arc<client::Handle<ClientHandler>>,
+    file: &str,
+    project: &str,
+    on_output: &LogSink,
+) -> Result<()> {
+    run_remote(session, &update_script(file, project), on_output).await
+}
+
+/// Lee un archivo del servidor por un canal exec (`cat`).
+pub async fn read_remote_file(
+    session: &Arc<client::Handle<ClientHandler>>,
+    path: &str,
+) -> Result<String> {
+    let mut channel = session
+        .channel_open_session()
+        .await
+        .map_err(|e| e.to_string())?;
+    channel
+        .exec(true, format!("cat '{path}'"))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut buf = Vec::new();
+    let mut code = 0u32;
+    while let Some(msg) = channel.wait().await {
+        match msg {
+            ChannelMsg::Data { data } => buf.extend_from_slice(&data),
+            ChannelMsg::ExitStatus { exit_status } => code = exit_status,
+            _ => {}
+        }
+    }
+    if code != 0 {
+        return Err(format!("no se pudo leer {path} en el servidor"));
+    }
+    String::from_utf8(buf).map_err(|_| "el archivo no es UTF-8 válido".to_string())
 }
 
 async fn run_local(script: &str, on_output: &LogSink) -> Result<()> {

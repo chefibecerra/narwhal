@@ -15,6 +15,7 @@ use tauri::menu::{MenuBuilder, SubmenuBuilder};
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         // recuerda tamaño y posición de la ventana entre sesiones
@@ -75,6 +76,9 @@ pub fn run() {
             commands::docker_exec_stop,
             commands::docker_compose_up,
             commands::docker_compose_action,
+            commands::docker_compose_file,
+            commands::docker_compose_update,
+            commands::docker_inspect,
             commands::docker_list_images,
             commands::docker_remove_image,
             commands::docker_prune_images,

@@ -22,6 +22,26 @@ export const LOCAL_HOST = "local";
 /** último resumen enviado al tray: solo se reconstruye el menú si cambió */
 let lastTraySnapshot = "";
 
+/** reconexión automática con backoff exponencial (2s → 30s) */
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 2000;
+
+function clearReconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+function scheduleReconnect(run: () => void) {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    run();
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+}
+
 interface ContainersState {
   status: ConnectionStatus;
   error: string | null;
@@ -43,6 +63,8 @@ interface ContainersState {
   volumes: VolumeInfo[];
   networks: NetworkInfo[];
   composeOpen: boolean;
+  /** contenido inicial del diálogo compose al editar un proyecto existente */
+  composePrefill: { project: string; yaml: string } | null;
   paletteOpen: boolean;
   loadHosts: () => Promise<void>;
   saveHost: (host: HostConfig) => Promise<void>;
@@ -69,6 +91,10 @@ interface ContainersState {
     project: string,
     action: "down" | "restart" | "stop" | "start",
   ) => Promise<void>;
+  /** pull + up -d del proyecto con su archivo original */
+  composeUpdateProject: (project: string) => Promise<void>;
+  /** abre el diálogo compose con el YAML del proyecto ya cargado */
+  openComposeFor: (project: string) => Promise<void>;
 }
 
 export const useContainers = create<ContainersState>((set, get) => ({
@@ -87,6 +113,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   volumes: [],
   networks: [],
   composeOpen: false,
+  composePrefill: null,
   paletteOpen: false,
 
   loadHosts: async () => {
@@ -118,6 +145,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   },
 
   connectTo: async (hostId, secret) => {
+    clearReconnect();
     set({
       status: "connecting",
       error: null,
@@ -136,6 +164,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
           ? await ipc.connectLocal()
           : await ipc.connectRemote(hostId, secret);
       set({ status: "connected", docker });
+      reconnectDelay = 2000;
       await get().refresh();
       return null;
     } catch (e) {
@@ -144,6 +173,10 @@ export const useContainers = create<ContainersState>((set, get) => ({
         status: "error",
         error: raw.replace(/^(auth|passphrase):\s*/, ""),
       });
+      // sin credenciales no hay reintento que valga: eso lo decide el usuario
+      if (!raw.startsWith("auth:") && !raw.startsWith("passphrase:")) {
+        scheduleReconnect(() => void get().connectTo(hostId));
+      }
       return raw;
     }
   },
@@ -170,6 +203,8 @@ export const useContainers = create<ContainersState>((set, get) => ({
       if (view === "networks") set({ networks: await ipc.listNetworks() });
     } catch (e) {
       set({ status: "error", error: String(e) });
+      // la conexión murió (red, VPS reiniciado): reintentar con backoff
+      scheduleReconnect(() => void get().connectTo(get().activeHostId));
     }
   },
 
@@ -243,5 +278,28 @@ export const useContainers = create<ContainersState>((set, get) => ({
       toast.error(String(e));
     }
     await get().refresh();
+  },
+
+  composeUpdateProject: async (project) => {
+    const id = toast.loading(`Actualizando ${project}… (pull + up)`);
+    try {
+      await ipc.composeUpdate(project, () => {});
+      toast.success(`${project} actualizado a las últimas imágenes`, { id });
+    } catch (e) {
+      toast.error(String(e), { id });
+    }
+    await get().refresh();
+  },
+
+  openComposeFor: async (project) => {
+    try {
+      // el archivo original del proyecto; si no existe, la biblioteca propia
+      const yaml = await ipc
+        .composeFile(project)
+        .catch(() => ipc.composeSavedRead(project));
+      set({ composePrefill: { project, yaml }, composeOpen: true });
+    } catch (e) {
+      toast.error(String(e));
+    }
   },
 }));

@@ -1,6 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type {
+  ContainerDetails,
   ContainerInfo,
   ContainerStats,
   DockerInfo,
@@ -122,6 +123,23 @@ export const listNetworks = () => invoke<NetworkInfo[]>("docker_list_networks");
 export const removeNetwork = (id: string) =>
   invoke<void>("docker_remove_network", { id });
 export const pruneNetworks = () => invoke<number>("docker_prune_networks");
+
+export const inspectContainer = (id: string) =>
+  invoke<ContainerDetails>("docker_inspect", { id });
+
+/** YAML del proyecto según los labels de Docker (archivo original) */
+export const composeFile = (project: string) =>
+  invoke<string>("docker_compose_file", { project });
+
+/** pull + up -d con el archivo original del proyecto */
+export const composeUpdate = (
+  project: string,
+  onOutput: (chunk: LogChunk) => void,
+) => {
+  const channel = new Channel<LogChunk>();
+  channel.onmessage = onOutput;
+  return invoke<void>("docker_compose_update", { project, onOutput: channel });
+};
 
 /** biblioteca local de composes desplegados */
 export const composeSavedList = () =>

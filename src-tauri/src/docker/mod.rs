@@ -74,6 +74,33 @@ pub struct VolumeInfo {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MountInfo {
+    pub source: String,
+    pub destination: String,
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkAttachment {
+    pub name: String,
+    pub ip: String,
+}
+
+/// Detalle de inspect para el panel: lo que hace falta para depurar
+/// sin volver al terminal.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerDetails {
+    pub env: Vec<String>,
+    pub cmd: Option<String>,
+    pub restart_policy: String,
+    pub mounts: Vec<MountInfo>,
+    pub networks: Vec<NetworkAttachment>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NetworkInfo {
     pub id: String,
     pub name: String,
@@ -130,6 +157,13 @@ pub trait DockerHost: Send + Sync {
     /// proyecto por labels, sin necesitar el archivo.
     async fn compose_action(&self, project: &str, action: &str, on_output: LogSink)
         -> Result<()>;
+    /// YAML del proyecto, leído del archivo que registran los labels de Docker.
+    async fn compose_file(&self, project: &str) -> Result<String>;
+    /// `pull` + `up -d` con el archivo original del proyecto: "desplegar
+    /// la última versión" en un clic.
+    async fn compose_update(&self, project: &str, on_output: LogSink) -> Result<()>;
+    /// env, montajes, redes y política de reinicio del contenedor.
+    async fn inspect(&self, id: &str) -> Result<ContainerDetails>;
 
     async fn list_images(&self) -> Result<Vec<ImageInfo>>;
     async fn remove_image(&self, id: &str) -> Result<()>;

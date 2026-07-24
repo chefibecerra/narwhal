@@ -155,9 +155,45 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// El frontend empuja la lista tras cada refresh; el menú se reconstruye.
+/// Notifica SOLO transiciones: corriendo→parado y sano→unhealthy. Nada de
+/// avisar por contenedores nuevos ni por el estado inicial al arrancar.
+fn notify_changes(app: &AppHandle, containers: &[TrayContainer]) {
+    use tauri_plugin_notification::NotificationExt;
+
+    let state = app.state::<crate::commands::DockerState>();
+    let mut prev = state.tray_prev.lock().unwrap();
+
+    for c in containers {
+        if let Some((old_state, old_unhealthy)) = prev.get(&c.id) {
+            if old_state == "running" && c.state != "running" {
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title("Contenedor detenido")
+                    .body(format!("{} ha dejado de ejecutarse", c.name))
+                    .show();
+            }
+            if !old_unhealthy && c.unhealthy {
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title("Healthcheck fallando")
+                    .body(format!("{} está unhealthy", c.name))
+                    .show();
+            }
+        }
+    }
+
+    *prev = containers
+        .iter()
+        .map(|c| (c.id.clone(), (c.state.clone(), c.unhealthy)))
+        .collect();
+}
+
+/// El frontend empuja la lista tras cada cambio; el menú se reconstruye.
 #[tauri::command]
 pub fn tray_update(app: AppHandle, containers: Vec<TrayContainer>) -> Result<(), String> {
+    notify_changes(&app, &containers);
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return Ok(());
     };

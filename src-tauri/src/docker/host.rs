@@ -8,11 +8,13 @@ use futures_util::StreamExt;
 
 use super::tunnel::SocketTunnel;
 use super::{
-    BytesSink, ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, ImageInfo,
-    LogChunk, LogSink, NetworkInfo, PortMapping, Result, StatsSink, VolumeInfo,
+    BytesSink, ContainerDetails, ContainerInfo, ContainerStats, DockerHost, DockerInfo,
+    ExecOp, ImageInfo, LogChunk, LogSink, MountInfo, NetworkAttachment, NetworkInfo,
+    PortMapping, Result, StatsSink, VolumeInfo,
 };
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
+const COMPOSE_CONFIG_LABEL: &str = "com.docker.compose.project.config_files";
 
 /// Un Docker cualquiera visto a través de bollard. Local habla con el socket
 /// de la máquina; remoto habla con el mismo socket... tunelizado por SSH.
@@ -38,6 +40,33 @@ impl BollardHost {
             docker,
             tunnel: Some(tunnel),
         }
+    }
+
+    /// Ruta del compose de un proyecto según los labels de sus contenedores.
+    async fn compose_config_path(&self, project: &str) -> Result<String> {
+        let mut filters = std::collections::HashMap::new();
+        filters.insert(
+            "label".to_string(),
+            vec![format!("{COMPOSE_PROJECT_LABEL}={project}")],
+        );
+        let list = self
+            .docker
+            .list_containers(Some(ListContainersOptions::<String> {
+                all: true,
+                filters,
+                ..Default::default()
+            }))
+            .await
+            .map_err(|e| e.to_string())?;
+
+        list.into_iter()
+            .find_map(|c| {
+                c.labels
+                    .and_then(|l| l.get(COMPOSE_CONFIG_LABEL).cloned())
+            })
+            .map(|s| s.split(',').next().unwrap_or_default().to_string())
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| "No se encontró el archivo compose del proyecto".to_string())
     }
 }
 
@@ -306,6 +335,72 @@ impl DockerHost for BollardHost {
             }
             None => super::compose::action_local(&project, action, &on_output).await,
         }
+    }
+
+    async fn compose_file(&self, project: &str) -> Result<String> {
+        let project = super::compose::sanitize_project(project)?;
+        let path = self.compose_config_path(&project).await?;
+        match &self.tunnel {
+            None => std::fs::read_to_string(&path)
+                .map_err(|e| format!("no se pudo leer {path}: {e}")),
+            Some(tunnel) => super::compose::read_remote_file(&tunnel.session(), &path).await,
+        }
+    }
+
+    async fn compose_update(&self, project: &str, on_output: LogSink) -> Result<()> {
+        let project = super::compose::sanitize_project(project)?;
+        let path = self.compose_config_path(&project).await?;
+        match &self.tunnel {
+            None => super::compose::update_local(&path, &project, &on_output).await,
+            Some(tunnel) => {
+                super::compose::update_remote(&tunnel.session(), &path, &project, &on_output)
+                    .await
+            }
+        }
+    }
+
+    async fn inspect(&self, id: &str) -> Result<ContainerDetails> {
+        use bollard::container::InspectContainerOptions;
+        let d = self
+            .docker
+            .inspect_container(id, None::<InspectContainerOptions>)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let config = d.config.unwrap_or_default();
+        let restart_policy = d
+            .host_config
+            .and_then(|h| h.restart_policy)
+            .and_then(|r| r.name)
+            .map(|n| n.to_string())
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| "no".into());
+
+        Ok(ContainerDetails {
+            env: config.env.unwrap_or_default(),
+            cmd: config.cmd.map(|c| c.join(" ")),
+            restart_policy,
+            mounts: d
+                .mounts
+                .unwrap_or_default()
+                .into_iter()
+                .map(|m| MountInfo {
+                    source: m.source.unwrap_or_default(),
+                    destination: m.destination.unwrap_or_default(),
+                    mode: m.mode.unwrap_or_default(),
+                })
+                .collect(),
+            networks: d
+                .network_settings
+                .and_then(|n| n.networks)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(name, endpoint)| NetworkAttachment {
+                    name,
+                    ip: endpoint.ip_address.unwrap_or_default(),
+                })
+                .collect(),
+        })
     }
 
     async fn list_images(&self) -> Result<Vec<ImageInfo>> {

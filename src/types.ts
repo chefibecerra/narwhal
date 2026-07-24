@@ -59,6 +59,26 @@ export interface NetworkInfo {
 
 export type View = "containers" | "images" | "volumes" | "networks";
 
+export interface MountInfo {
+  source: string;
+  destination: string;
+  mode: string;
+}
+
+export interface NetworkAttachment {
+  name: string;
+  ip: string;
+}
+
+/** inspect resumido: lo necesario para depurar sin volver al terminal */
+export interface ContainerDetails {
+  env: string[];
+  cmd: string | null;
+  restartPolicy: string;
+  mounts: MountInfo[];
+  networks: NetworkAttachment[];
+}
+
 /** servidor remoto guardado; nunca contiene secretos */
 export interface HostConfig {
   id: string;

@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   ChevronRight,
   Container,
+  Download,
+  FileCode2,
   RotateCw,
   Square,
   Trash2,
@@ -146,6 +148,8 @@ function Group({
 }) {
   const run = useContainers((s) => s.run);
   const composeAction = useContainers((s) => s.composeAction);
+  const composeUpdateProject = useContainers((s) => s.composeUpdateProject);
+  const openComposeFor = useContainers((s) => s.openComposeFor);
   const running = items.filter((c) => c.state === "running");
 
   const stopAll = async () => {
@@ -178,15 +182,37 @@ function Group({
         </button>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/header:opacity-100">
           {project && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={() => void composeAction(title, "restart")}
-              aria-label={`Reiniciar ${title}`}
-            >
-              <RotateCw className="size-3.5" />
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => void openComposeFor(title)}
+                aria-label={`Ver YAML de ${title}`}
+                title="Ver / editar YAML"
+              >
+                <FileCode2 className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => void composeUpdateProject(title)}
+                aria-label={`Actualizar ${title}`}
+                title="Actualizar (pull + up)"
+              >
+                <Download className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => void composeAction(title, "restart")}
+                aria-label={`Reiniciar ${title}`}
+              >
+                <RotateCw className="size-3.5" />
+              </Button>
+            </>
           )}
           {running.length > 0 && (
             <Button

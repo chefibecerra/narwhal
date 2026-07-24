@@ -45,16 +45,21 @@ export function ComposeDialog({
   const [saved, setSaved] = useState<string[]>([]);
   const outputRef = useRef<HTMLDivElement>(null);
 
+  const prefill = useContainers((s) => s.composePrefill);
+
   useEffect(() => {
     if (!open) return;
-    setProject("");
-    setYaml("");
+    // editar un proyecto existente llega con el YAML ya cargado
+    setProject(prefill?.project ?? "");
+    setYaml(prefill?.yaml ?? "");
+    if (prefill) useContainers.setState({ composePrefill: null });
     setLines([]);
     setPhase("edit");
     void ipc
       .composeSavedList()
       .then(setSaved)
       .catch(() => setSaved([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const loadSaved = async (name: string) => {

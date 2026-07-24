@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Rocket } from "lucide-react";
+import { Copy, Rocket } from "lucide-react";
 import { Play, RotateCw, Square, Terminal, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import logo from "@/assets/narwhal.png";
 import { healthOf } from "@/lib/docker";
@@ -26,7 +27,7 @@ import * as ipc from "@/lib/ipc";
 import { detectService, ServiceGlyph } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { useContainers } from "@/stores/containers";
-import type { ContainerStats } from "@/types";
+import type { ContainerDetails, ContainerInfo, ContainerStats } from "@/types";
 
 const DOT_BY_STATE: Record<string, string> = {
   running: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]",
@@ -189,6 +190,7 @@ export function DetailPanel() {
                 </dd>
               </div>
             )}
+            <InspectInfo key={c.id} container={c} />
           </dl>
         </TabsContent>
 
@@ -294,6 +296,98 @@ function StatTile({
         {label}
       </p>
     </div>
+  );
+}
+
+/** el comando equivalente para recrear el contenedor a mano */
+function dockerRunCommand(c: ContainerInfo, d: ContainerDetails): string {
+  const parts = [`docker run -d --name ${c.name}`];
+  if (d.restartPolicy && d.restartPolicy !== "no") {
+    parts.push(`--restart ${d.restartPolicy}`);
+  }
+  const seen = new Set<string>();
+  for (const p of c.ports) {
+    if (!p.publicPort) continue;
+    const mapping = `${p.publicPort}:${p.privatePort}`;
+    if (seen.has(mapping)) continue;
+    seen.add(mapping);
+    parts.push(`-p ${mapping}`);
+  }
+  for (const m of d.mounts) parts.push(`-v ${m.source}:${m.destination}`);
+  for (const e of d.env) parts.push(`-e '${e}'`);
+  parts.push(c.image);
+  return parts.join(" \\\n  ");
+}
+
+/** env, montajes, redes y reinicio — para depurar sin volver al terminal */
+function InspectInfo({ container }: { container: ContainerInfo }) {
+  const [details, setDetails] = useState<ContainerDetails | null>(null);
+
+  useEffect(() => {
+    void ipc
+      .inspectContainer(container.id)
+      .then(setDetails)
+      .catch(() => setDetails(null));
+  }, [container.id]);
+
+  if (!details) return null;
+
+  const copyRun = async () => {
+    await navigator.clipboard.writeText(dockerRunCommand(container, details));
+    toast.success("Comando docker run copiado");
+  };
+
+  return (
+    <>
+      <InfoRow label="Reinicio" value={details.restartPolicy} />
+      {details.networks.length > 0 && (
+        <InfoRow
+          label="Redes"
+          value={details.networks
+            .map((n) => (n.ip ? `${n.name} (${n.ip})` : n.name))
+            .join(", ")}
+        />
+      )}
+      {details.mounts.length > 0 && (
+        <div>
+          <dt className="mb-1 text-muted-foreground">Montajes</dt>
+          <dd className="space-y-1">
+            {details.mounts.map((m) => (
+              <div
+                key={`${m.source}:${m.destination}`}
+                className="truncate font-mono text-[10.5px]"
+                title={`${m.source} → ${m.destination} (${m.mode || "rw"})`}
+              >
+                {m.destination}{" "}
+                <span className="text-muted-foreground/60">← {m.source}</span>
+              </div>
+            ))}
+          </dd>
+        </div>
+      )}
+      {details.env.length > 0 && (
+        <div>
+          <dt className="mb-1 text-muted-foreground">
+            Entorno · {details.env.length}
+          </dt>
+          <dd className="max-h-36 space-y-0.5 overflow-y-auto overscroll-none rounded-lg bg-secondary/30 p-2">
+            {details.env.map((line) => (
+              <div key={line} className="break-all font-mono text-[10.5px]">
+                {line}
+              </div>
+            ))}
+          </dd>
+        </div>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 w-full text-xs"
+        onClick={() => void copyRun()}
+      >
+        <Copy className="size-3" /> Copiar docker run
+      </Button>
+    </>
   );
 }
 

@@ -7,8 +7,8 @@ use tokio::sync::{mpsc, Mutex};
 
 use crate::docker::host::BollardHost;
 use crate::docker::{
-    ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp, ImageInfo, LogChunk,
-    NetworkInfo, VolumeInfo,
+    ContainerDetails, ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp,
+    ImageInfo, LogChunk, NetworkInfo, VolumeInfo,
 };
 
 const LOCAL_KEY: &str = "local";
@@ -24,6 +24,9 @@ pub struct DockerState {
     secrets: Mutex<HashMap<String, String>>,
     log_streams: Mutex<HashMap<String, tauri::async_runtime::JoinHandle<()>>>,
     exec_sessions: Mutex<HashMap<String, mpsc::Sender<ExecOp>>>,
+    /// último estado visto por el tray: (estado, unhealthy) por contenedor,
+    /// para notificar solo transiciones
+    pub(crate) tray_prev: std::sync::Mutex<HashMap<String, (String, bool)>>,
 }
 
 pub(crate) async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
@@ -338,6 +341,39 @@ pub async fn docker_compose_up(
         .compose_up(
             &project,
             &yaml,
+            Box::new(move |chunk| {
+                let _ = on_output.send(chunk);
+            }),
+        )
+        .await
+}
+
+#[tauri::command]
+pub async fn docker_inspect(
+    state: State<'_, DockerState>,
+    id: String,
+) -> Result<ContainerDetails, String> {
+    host(&state).await?.inspect(&id).await
+}
+
+#[tauri::command]
+pub async fn docker_compose_file(
+    state: State<'_, DockerState>,
+    project: String,
+) -> Result<String, String> {
+    host(&state).await?.compose_file(&project).await
+}
+
+#[tauri::command]
+pub async fn docker_compose_update(
+    state: State<'_, DockerState>,
+    project: String,
+    on_output: Channel<LogChunk>,
+) -> Result<(), String> {
+    host(&state)
+        .await?
+        .compose_update(
+            &project,
             Box::new(move |chunk| {
                 let _ = on_output.send(chunk);
             }),
