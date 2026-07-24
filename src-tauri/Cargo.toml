@@ -18,7 +18,7 @@ tauri-build = { version = "2", features = [] }
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "s"
+opt-level = "z"
 panic = "abort"
 strip = true
 
@@ -34,5 +34,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 bollard = "0.17"
 async-trait = "0.1"
 futures-util = "0.3"
-russh = "0.62"
+# sin flate2 (compresión SSH que no negociamos); aws-lc-rs y rsa se quedan:
+# el backend de cifrado es obligatorio y media internet aún usa claves RSA
+russh = { version = "0.62", default-features = false, features = ["aws-lc-rs", "rsa"] }
 uuid = { version = "1", features = ["v4"] }
