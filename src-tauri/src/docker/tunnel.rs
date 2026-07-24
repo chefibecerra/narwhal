@@ -118,7 +118,9 @@ impl Drop for SocketTunnel {
     fn drop(&mut self) {
         self.accept_task.abort();
         #[cfg(unix)]
-        if let DockerAddr::Unix(path) = &self.addr {
+        {
+            // en unix el enum solo tiene esta variante: let irrefutable
+            let DockerAddr::Unix(path) = &self.addr;
             let _ = std::fs::remove_file(path);
         }
         let conn = self.handle.clone();
