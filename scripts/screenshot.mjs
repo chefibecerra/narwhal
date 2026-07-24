@@ -70,6 +70,11 @@ const MOCK = () => {
   ];
 
   window.__TAURI_INTERNALS__ = {
+    // getCurrentWindow() exige saber en qué ventana vive el webview
+    metadata: {
+      currentWindow: { label: "main" },
+      currentWebview: { label: "main" },
+    },
     callbacks: new Map(),
     nextId: 0,
     transformCallback(cb) {
@@ -117,6 +122,20 @@ const MOCK = () => {
           setInterval(send, 900);
           return;
         }
+        case "docker_inspect":
+          return {
+            env: ["POSTGRES_USER=app", "POSTGRES_DB=app", "POSTGRES_PASSWORD=········"],
+            cmd: "postgres",
+            restartPolicy: "unless-stopped",
+            mounts: [
+              {
+                source: "mi-stack_pgdata",
+                destination: "/var/lib/postgresql/data",
+                mode: "rw",
+              },
+            ],
+            networks: [{ name: "mi-stack_default", ip: "172.18.0.2" }],
+          };
         case "tray_update":
         case "docker_stats_stop":
           return;
