@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   Server,
+  Settings,
 } from "lucide-react";
 
 import { ConnectDialog } from "@/components/ConnectDialog";
@@ -30,6 +31,7 @@ export function Sidebar() {
   const connectTo = useContainers((s) => s.connectTo);
   const view = useContainers((s) => s.view);
   const setView = useContainers((s) => s.setView);
+  const setSettingsOpen = useContainers((s) => s.setSettingsOpen);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<HostConfig | null>(null);
@@ -116,6 +118,19 @@ export function Sidebar() {
           Añadir servidor
         </button>
       </nav>
+
+      <footer className="border-t border-border/60 p-2">
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+        >
+          <Settings className="size-4 shrink-0 opacity-70" />
+          Preferencias
+          <kbd className="ml-auto font-mono text-[10px] text-muted-foreground/50">
+            ⌘,
+          </kbd>
+        </button>
+      </footer>
 
       <HostForm open={formOpen} host={editing} onOpenChange={setFormOpen} />
       {ask && (
