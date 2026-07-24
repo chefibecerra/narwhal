@@ -50,12 +50,15 @@ function App() {
     return () => void unlisten.then((fn) => fn());
   }, []);
 
-  // refresco periódico mientras haya conexión — pausado con la ventana
-  // oculta (minimizada u otro escritorio): cero trabajo en segundo plano
+  // refresco periódico mientras haya conexión. Con la ventana oculta baja
+  // a 1 de cada 5 ticks (15s): suficiente para que el tray siga al día
+  // con una fracción del trabajo en segundo plano.
   useEffect(() => {
     if (status !== "connected") return;
+    let ticks = 0;
     const timer = setInterval(() => {
-      if (!document.hidden) void refresh();
+      ticks += 1;
+      if (!document.hidden || ticks % 5 === 0) void refresh();
     }, 3000);
     const onVisible = () => {
       if (!document.hidden) void refresh(); // ponerse al día al volver
