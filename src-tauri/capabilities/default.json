@@ -6,7 +6,11 @@
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
+    "autostart:default",
     "notification:default",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
     "opener:default",
     "opener:allow-open-url",
     "updater:default",

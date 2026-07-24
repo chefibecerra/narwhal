@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { toast } from "sonner";
 
 import { CommandPalette } from "@/components/CommandPalette";
@@ -8,6 +9,7 @@ import { ContainerList } from "@/components/ContainerList";
 import { DetailPanel } from "@/components/DetailPanel";
 import { Header } from "@/components/Header";
 import { ResourceList } from "@/components/ResourceList";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { Sidebar } from "@/components/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { TerminalDrawer } from "@/components/TerminalDrawer";
@@ -15,6 +17,7 @@ import { TitleBar } from "@/components/TitleBar";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { LOCAL_HOST, useContainers } from "@/stores/containers";
+import { useSettings } from "@/stores/settings";
 import { useUpdater } from "@/stores/updater";
 
 function App() {
@@ -50,8 +53,11 @@ function App() {
     return () => void unlisten.then((fn) => fn());
   }, []);
 
+  const pollSeconds = useSettings((s) => s.pollSeconds);
+  const opacity = useSettings((s) => s.opacity);
+
   // refresco periódico mientras haya conexión. Con la ventana oculta baja
-  // a 1 de cada 5 ticks (15s): suficiente para que el tray siga al día
+  // a 1 de cada 5 ticks: suficiente para que el tray siga al día
   // con una fracción del trabajo en segundo plano.
   useEffect(() => {
     if (status !== "connected") return;
@@ -59,7 +65,7 @@ function App() {
     const timer = setInterval(() => {
       ticks += 1;
       if (!document.hidden || ticks % 5 === 0) void refresh();
-    }, 3000);
+    }, pollSeconds * 1000);
     const onVisible = () => {
       if (!document.hidden) void refresh(); // ponerse al día al volver
     };
@@ -68,7 +74,36 @@ function App() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [status, refresh]);
+  }, [status, refresh, pollSeconds]);
+
+  // opacidad de la ventana (el blur nativo ya está en la config de Tauri)
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--app-alpha",
+      String(opacity / 100),
+    );
+  }, [opacity]);
+
+  // "Preferencias…" del menú nativo de macOS (⌘,)
+  useEffect(() => {
+    const unlisten = listen("open-settings", () =>
+      useContainers.getState().setSettingsOpen(true),
+    );
+    return () => void unlisten.then((fn) => fn());
+  }, []);
+
+  // cerrar la ventana la oculta al tray (si el ajuste está activo);
+  // "Salir" del tray o ⌘Q siguen cerrando de verdad
+  useEffect(() => {
+    const window = getCurrentWindow();
+    const unlisten = window.onCloseRequested((event) => {
+      if (useSettings.getState().keepInTray) {
+        event.preventDefault();
+        void window.hide();
+      }
+    });
+    return () => void unlisten.then((fn) => fn());
+  }, []);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -90,6 +125,7 @@ function App() {
       </div>
       <ComposeDialog open={composeOpen} onOpenChange={setComposeOpen} />
       <CommandPalette />
+      <SettingsDialog />
       <UpdateBanner />
       <Toaster />
     </div>

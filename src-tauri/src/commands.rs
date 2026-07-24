@@ -27,6 +27,9 @@ pub struct DockerState {
     /// último estado visto por el tray: (estado, unhealthy) por contenedor,
     /// para notificar solo transiciones
     pub(crate) tray_prev: std::sync::Mutex<HashMap<String, (String, bool)>>,
+    /// socket con el que se construyó la conexión local del pool: si el
+    /// ajuste cambia, la conexión vieja se desecha
+    local_socket: std::sync::Mutex<Option<String>>,
 }
 
 pub(crate) async fn host(state: &DockerState) -> Result<Arc<dyn DockerHost>, String> {
@@ -75,12 +78,29 @@ async fn live_from_pool(state: &DockerState, key: &str) -> Option<(Arc<dyn Docke
 }
 
 #[tauri::command]
-pub async fn docker_connect_local(state: State<'_, DockerState>) -> Result<DockerInfo, String> {
+pub async fn docker_connect_local(
+    state: State<'_, DockerState>,
+    socket: Option<String>,
+) -> Result<DockerInfo, String> {
+    // si el ajuste de socket cambió, la conexión del pool ya no vale
+    let changed = {
+        let mut last = state.local_socket.lock().unwrap();
+        if *last != socket {
+            *last = socket.clone();
+            true
+        } else {
+            false
+        }
+    };
+    if changed {
+        evict(&state, LOCAL_KEY).await;
+    }
+
     if let Some((_, info)) = live_from_pool(&state, LOCAL_KEY).await {
         activate(&state, LOCAL_KEY).await;
         return Ok(info);
     }
-    let local = BollardHost::local()?;
+    let local = BollardHost::local(socket)?;
     // valida que el demonio responde antes de dar la conexión por buena
     let info = local.info().await?;
     state

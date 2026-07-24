@@ -3,6 +3,7 @@ import { create } from "zustand";
 
 import { formatBytes, healthOf } from "@/lib/docker";
 import * as ipc from "@/lib/ipc";
+import { useSettings } from "@/stores/settings";
 import type {
   ContainerInfo,
   DockerInfo,
@@ -66,6 +67,7 @@ interface ContainersState {
   /** contenido inicial del diálogo compose al editar un proyecto existente */
   composePrefill: { project: string; yaml: string } | null;
   paletteOpen: boolean;
+  settingsOpen: boolean;
   loadHosts: () => Promise<void>;
   saveHost: (host: HostConfig) => Promise<void>;
   deleteHost: (id: string) => Promise<void>;
@@ -84,6 +86,7 @@ interface ContainersState {
   setView: (view: View) => void;
   setComposeOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
+  setSettingsOpen: (open: boolean) => void;
   removeResource: (view: View, id: string) => Promise<void>;
   /** limpia recursos sin uso de la vista actual */
   prune: () => Promise<void>;
@@ -115,6 +118,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   composeOpen: false,
   composePrefill: null,
   paletteOpen: false,
+  settingsOpen: false,
 
   loadHosts: async () => {
     try {
@@ -161,7 +165,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
     try {
       const docker =
         hostId === LOCAL_HOST
-          ? await ipc.connectLocal()
+          ? await ipc.connectLocal(useSettings.getState().localSocket || null)
           : await ipc.connectRemote(hostId, secret);
       set({ status: "connected", docker });
       reconnectDelay = 2000;
@@ -192,10 +196,15 @@ export const useContainers = create<ContainersState>((set, get) => ({
         composeProject: c.composeProject,
         unhealthy: healthOf(c.status) === "unhealthy",
       }));
-      const snapshot = JSON.stringify(summary);
+      const prefs = useSettings.getState();
+      const snapshot =
+        JSON.stringify(summary) +
+        `|${prefs.notifyStopped}|${prefs.notifyUnhealthy}`;
       if (snapshot !== lastTraySnapshot) {
         lastTraySnapshot = snapshot;
-        void ipc.trayUpdate(summary).catch(() => {});
+        void ipc
+          .trayUpdate(summary, prefs.notifyStopped, prefs.notifyUnhealthy)
+          .catch(() => {});
       }
       const view = get().view;
       if (view === "images") set({ images: await ipc.listImages() });
@@ -240,6 +249,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   },
   setComposeOpen: (composeOpen) => set({ composeOpen }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 
   removeResource: async (view, id) => {
     try {

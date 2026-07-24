@@ -3,7 +3,7 @@ use bollard::container::{
     ListContainersOptions, LogOutput, LogsOptions, RemoveContainerOptions,
     RestartContainerOptions, StartContainerOptions, StatsOptions, StopContainerOptions,
 };
-use bollard::Docker;
+use bollard::{Docker, API_DEFAULT_VERSION};
 use futures_util::StreamExt;
 
 use super::tunnel::SocketTunnel;
@@ -27,8 +27,18 @@ pub struct BollardHost {
 }
 
 impl BollardHost {
-    pub fn local() -> Result<Self> {
-        let docker = Docker::connect_with_local_defaults().map_err(|e| e.to_string())?;
+    /// `socket` permite rutas no estándar (Colima, Podman, rootless);
+    /// vacío o None usa el socket por defecto de la plataforma.
+    pub fn local(socket: Option<String>) -> Result<Self> {
+        let socket = socket.filter(|s| !s.trim().is_empty());
+        let docker = match socket {
+            #[cfg(unix)]
+            Some(path) => Docker::connect_with_unix(&path, 30, API_DEFAULT_VERSION),
+            #[cfg(not(unix))]
+            Some(_) => Docker::connect_with_local_defaults(),
+            None => Docker::connect_with_local_defaults(),
+        }
+        .map_err(|e| e.to_string())?;
         Ok(Self {
             docker,
             tunnel: None,

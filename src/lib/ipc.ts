@@ -14,7 +14,8 @@ import type {
   VolumeInfo,
 } from "@/types";
 
-export const connectLocal = () => invoke<DockerInfo>("docker_connect_local");
+export const connectLocal = (socket?: string | null) =>
+  invoke<DockerInfo>("docker_connect_local", { socket: socket || null });
 
 /** `secret` es la passphrase si el host tiene clave, o la contraseña SSH si no */
 export const connectRemote = (hostId: string, secret?: string) =>
@@ -98,7 +99,7 @@ export const execResize = (sessionId: string, cols: number, rows: number) =>
 export const execStop = (sessionId: string) =>
   invoke<void>("docker_exec_stop", { sessionId });
 
-/** resumen para el menú de la barra de macOS */
+/** resumen para el menú de la barra de macOS + preferencias de aviso */
 export const trayUpdate = (
   containers: {
     id: string;
@@ -107,7 +108,9 @@ export const trayUpdate = (
     composeProject: string | null;
     unhealthy: boolean;
   }[],
-) => invoke<void>("tray_update", { containers });
+  notifyStopped: boolean,
+  notifyUnhealthy: boolean,
+) => invoke<void>("tray_update", { containers, notifyStopped, notifyUnhealthy });
 
 export const listImages = () => invoke<ImageInfo[]>("docker_list_images");
 export const removeImage = (id: string) =>

@@ -9,12 +9,17 @@ mod ssh_config;
 mod store;
 mod tray;
 
-use tauri::menu::{MenuBuilder, SubmenuBuilder};
+use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -28,6 +33,12 @@ pub fn run() {
         .menu(|handle| {
             let app_menu = SubmenuBuilder::new(handle, "Narwhal")
                 .about(None)
+                .separator()
+                .item(
+                    &MenuItemBuilder::with_id("settings", "Preferencias…")
+                        .accelerator("Cmd+,")
+                        .build(handle)?,
+                )
                 .separator()
                 .hide()
                 .hide_others()
@@ -57,6 +68,11 @@ pub fn run() {
             MenuBuilder::new(handle)
                 .items(&[&app_menu, &edit_menu, &window_menu])
                 .build()
+        })
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "settings" {
+                let _ = app.emit("open-settings", ());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::docker_connect_local,
@@ -100,6 +116,16 @@ pub fn run() {
             composes::compose_saved_read,
             composes::compose_saved_save,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            // clic en el icono del Dock con la ventana oculta: se vuelve a mostrar
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                if let Some(window) = _app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        });
 }

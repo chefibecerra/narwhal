@@ -8,6 +8,7 @@ import {
   Network,
   Rocket,
   Server,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +34,7 @@ export function CommandPalette() {
   const setView = useContainers((s) => s.setView);
   const connectTo = useContainers((s) => s.connectTo);
   const setComposeOpen = useContainers((s) => s.setComposeOpen);
+  const setSettingsOpen = useContainers((s) => s.setSettingsOpen);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -135,6 +137,12 @@ export function CommandPalette() {
             }
           >
             <ArrowUpCircle className="size-4" /> Buscar actualizaciones
+          </CommandItem>
+          <CommandItem
+            value="preferencias ajustes settings"
+            onSelect={() => close(() => setSettingsOpen(true))}
+          >
+            <Settings className="size-4" /> Preferencias…
           </CommandItem>
         </CommandGroup>
       </CommandList>
