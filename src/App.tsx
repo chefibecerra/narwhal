@@ -50,11 +50,21 @@ function App() {
     return () => void unlisten.then((fn) => fn());
   }, []);
 
-  // refresco periódico mientras haya conexión
+  // refresco periódico mientras haya conexión — pausado con la ventana
+  // oculta (minimizada u otro escritorio): cero trabajo en segundo plano
   useEffect(() => {
     if (status !== "connected") return;
-    const timer = setInterval(() => void refresh(), 3000);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 3000);
+    const onVisible = () => {
+      if (!document.hidden) void refresh(); // ponerse al día al volver
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [status, refresh]);
 
   return (

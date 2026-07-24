@@ -19,6 +19,9 @@ export type ContainerAction = "start" | "stop" | "restart" | "remove";
 /** id del host local en la UI; los remotos usan su uuid */
 export const LOCAL_HOST = "local";
 
+/** último resumen enviado al tray: solo se reconstruye el menú si cambió */
+let lastTraySnapshot = "";
+
 interface ContainersState {
   status: ConnectionStatus;
   error: string | null;
@@ -149,17 +152,18 @@ export const useContainers = create<ContainersState>((set, get) => ({
     try {
       const containers = await ipc.listContainers();
       set({ containers });
-      void ipc
-        .trayUpdate(
-          containers.map((c) => ({
-            id: c.id,
-            name: c.name,
-            state: c.state,
-            composeProject: c.composeProject,
-            unhealthy: healthOf(c.status) === "unhealthy",
-          })),
-        )
-        .catch(() => {});
+      const summary = containers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        state: c.state,
+        composeProject: c.composeProject,
+        unhealthy: healthOf(c.status) === "unhealthy",
+      }));
+      const snapshot = JSON.stringify(summary);
+      if (snapshot !== lastTraySnapshot) {
+        lastTraySnapshot = snapshot;
+        void ipc.trayUpdate(summary).catch(() => {});
+      }
       const view = get().view;
       if (view === "images") set({ images: await ipc.listImages() });
       if (view === "volumes") set({ volumes: await ipc.listVolumes() });
