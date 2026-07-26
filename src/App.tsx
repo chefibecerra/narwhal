@@ -64,6 +64,17 @@ function App() {
     return () => void unlisten.then((fn) => fn());
   }, []);
 
+  // "Logs" desde el tray: ventana + contenedor + pestaña de logs, de un gesto
+  useEffect(() => {
+    const unlisten = listen<string>("tray-logs", (e) => {
+      const s = useContainers.getState();
+      s.setView("containers");
+      s.select(e.payload);
+      s.setDetailTab("logs");
+    });
+    return () => void unlisten.then((fn) => fn());
+  }, []);
+
   const pollSeconds = useSettings((s) => s.pollSeconds);
   const opacity = useSettings((s) => s.opacity);
 

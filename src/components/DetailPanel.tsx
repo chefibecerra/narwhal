@@ -41,6 +41,8 @@ export function DetailPanel() {
   );
   const run = useContainers((s) => s.run);
   const openExec = useContainers((s) => s.openExec);
+  const detailTab = useContainers((s) => s.detailTab);
+  const setDetailTab = useContainers((s) => s.setDetailTab);
   const busy = useContainers((s) =>
     container ? Boolean(s.busy[container.id]) : false,
   );
@@ -152,7 +154,11 @@ export function DetailPanel() {
         </div>
       </div>
 
-      <Tabs defaultValue="info" className="flex min-h-0 flex-1 flex-col">
+      <Tabs
+        value={detailTab}
+        onValueChange={(tab) => setDetailTab(tab as "info" | "logs")}
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <TabsList className="mx-4 mt-3 h-8 self-start">
           <TabsTrigger value="info" className="text-xs">
             Info

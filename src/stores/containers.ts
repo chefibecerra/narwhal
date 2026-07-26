@@ -52,6 +52,8 @@ interface ContainersState {
   busy: Record<string, ContainerAction>;
   /** contenedor seleccionado, mostrado en el panel de detalle */
   selectedId: string | null;
+  /** pestaña activa del panel de detalle */
+  detailTab: "info" | "logs";
   /** contenedor con consola abierta en el cajón inferior */
   execId: string | null;
   /** filtro de búsqueda de la lista */
@@ -80,6 +82,7 @@ interface ContainersState {
   refresh: () => Promise<void>;
   run: (id: string, action: ContainerAction) => Promise<void>;
   select: (id: string | null) => void;
+  setDetailTab: (tab: "info" | "logs") => void;
   setSearch: (search: string) => void;
   openExec: (id: string) => void;
   closeExec: () => void;
@@ -107,6 +110,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   containers: [],
   busy: {},
   selectedId: null,
+  detailTab: "info",
   execId: null,
   search: "",
   hosts: [],
@@ -241,6 +245,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   },
 
   select: (id) => set({ selectedId: id }),
+  setDetailTab: (detailTab) => set({ detailTab }),
   setSearch: (search) => set({ search }),
   openExec: (id) => set({ execId: id }),
   closeExec: () => set({ execId: null }),
