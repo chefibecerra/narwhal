@@ -53,6 +53,17 @@ function App() {
     return () => void unlisten.then((fn) => fn());
   }, []);
 
+  // "Consola" desde el tray: abrir la ventana con la shell ya lanzada
+  useEffect(() => {
+    const unlisten = listen<string>("tray-exec", (e) => {
+      const s = useContainers.getState();
+      s.setView("containers");
+      s.select(e.payload);
+      s.openExec(e.payload);
+    });
+    return () => void unlisten.then((fn) => fn());
+  }, []);
+
   const pollSeconds = useSettings((s) => s.pollSeconds);
   const opacity = useSettings((s) => s.opacity);
 

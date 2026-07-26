@@ -1,5 +1,8 @@
 use serde::Deserialize;
-use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::menu::{
+    IconMenuItem, IconMenuItemBuilder, Menu, MenuBuilder, MenuItemBuilder, NativeIcon,
+    SubmenuBuilder,
+};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
@@ -19,6 +22,18 @@ pub struct TrayContainer {
     pub unhealthy: bool,
 }
 
+/// Ítem con icono nativo de macOS (en otras plataformas queda sin icono).
+fn action(
+    app: &AppHandle,
+    id: String,
+    text: &str,
+    icon: NativeIcon,
+) -> tauri::Result<IconMenuItem<Wry>> {
+    IconMenuItemBuilder::with_id(id, text)
+        .native_icon(icon)
+        .build(app)
+}
+
 fn state_dot(c: &TrayContainer) -> &'static str {
     if c.unhealthy {
         "🟠"
@@ -36,21 +51,40 @@ fn container_submenu(
     let running = c.state == "running";
     // dentro de un proyecto basta el nombre del servicio, como OrbStack
     let label = c.service.as_deref().unwrap_or(&c.name);
-    let mut sub = SubmenuBuilder::new(app, format!("{} {}", state_dot(c), label)).item(
-        &MenuItemBuilder::with_id(format!("sel:{}", c.id), "Ver en Narwhal").build(app)?,
-    );
+    let mut sub = SubmenuBuilder::new(app, format!("{} {}", state_dot(c), label)).item(&action(
+        app,
+        format!("sel:{}", c.id),
+        "Ver en Narwhal",
+        NativeIcon::RevealFreestanding,
+    )?);
     sub = sub.separator();
     if running {
         sub = sub
-            .item(&MenuItemBuilder::with_id(format!("act:stop:{}", c.id), "Detener").build(app)?)
-            .item(
-                &MenuItemBuilder::with_id(format!("act:restart:{}", c.id), "Reiniciar")
-                    .build(app)?,
-            );
+            .item(&action(
+                app,
+                format!("exec:{}", c.id),
+                "Consola",
+                NativeIcon::FollowLinkFreestanding,
+            )?)
+            .item(&action(
+                app,
+                format!("act:stop:{}", c.id),
+                "Detener",
+                NativeIcon::StopProgressFreestanding,
+            )?)
+            .item(&action(
+                app,
+                format!("act:restart:{}", c.id),
+                "Reiniciar",
+                NativeIcon::RefreshFreestanding,
+            )?);
     } else {
-        sub = sub.item(
-            &MenuItemBuilder::with_id(format!("act:start:{}", c.id), "Iniciar").build(app)?,
-        );
+        sub = sub.item(&action(
+            app,
+            format!("act:start:{}", c.id),
+            "Iniciar",
+            NativeIcon::RightFacingTriangle,
+        )?);
     }
     sub.build()
 }
@@ -85,22 +119,25 @@ fn build_menu(app: &AppHandle, containers: &[TrayContainer]) -> tauri::Result<Me
                 SubmenuBuilder::new(app, format!("{project} · {running}/{}", items.len()));
             // acciones del proyecto arriba, como OrbStack
             sub = sub
-                .item(
-                    &MenuItemBuilder::with_id(format!("prj:stop:{project}"), "Detener todo")
-                        .build(app)?,
-                )
-                .item(
-                    &MenuItemBuilder::with_id(format!("prj:restart:{project}"), "Reiniciar")
-                        .build(app)?,
-                )
+                .item(&action(
+                    app,
+                    format!("prj:stop:{project}"),
+                    "Detener todo",
+                    NativeIcon::StopProgressFreestanding,
+                )?)
+                .item(&action(
+                    app,
+                    format!("prj:restart:{project}"),
+                    "Reiniciar",
+                    NativeIcon::RefreshFreestanding,
+                )?)
                 .separator()
-                .item(
-                    &MenuItemBuilder::with_id(
-                        format!("prj:down:{project}"),
-                        "Down — detener y eliminar",
-                    )
-                    .build(app)?,
-                )
+                .item(&action(
+                    app,
+                    format!("prj:down:{project}"),
+                    "Down — detener y eliminar",
+                    NativeIcon::TrashFull,
+                )?)
                 .separator()
                 .item(&MenuItemBuilder::new("Servicios").enabled(false).build(app)?);
             for c in items {
@@ -138,6 +175,9 @@ fn on_menu_item(app: &AppHandle, id: &str) {
             if let Some(container_id) = id.strip_prefix("sel:") {
                 show_main(app);
                 let _ = app.emit("tray-select", container_id.to_string());
+            } else if let Some(container_id) = id.strip_prefix("exec:") {
+                show_main(app);
+                let _ = app.emit("tray-exec", container_id.to_string());
             } else if let Some(rest) = id.strip_prefix("prj:") {
                 if let Some((action, project)) = rest.split_once(':') {
                     if matches!(action, "stop" | "restart" | "down") {
