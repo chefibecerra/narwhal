@@ -194,6 +194,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
         name: c.name,
         state: c.state,
         composeProject: c.composeProject,
+        service: c.composeService,
         unhealthy: healthOf(c.status) === "unhealthy",
       }));
       const prefs = useSettings.getState();

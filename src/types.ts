@@ -16,6 +16,8 @@ export interface ContainerInfo {
   created: number;
   ports: PortMapping[];
   composeProject: string | null;
+  /** nombre del servicio compose ("postgres", no "app-postgres-1") */
+  composeService: string | null;
 }
 
 export interface DockerInfo {

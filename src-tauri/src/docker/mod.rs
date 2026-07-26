@@ -28,6 +28,8 @@ pub struct ContainerInfo {
     pub created: i64,
     pub ports: Vec<PortMapping>,
     pub compose_project: Option<String>,
+    /// nombre del servicio dentro del proyecto ("postgres", no "app-postgres-1")
+    pub compose_service: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

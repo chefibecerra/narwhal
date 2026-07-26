@@ -13,6 +13,9 @@ pub struct TrayContainer {
     pub name: String,
     pub state: String,
     pub compose_project: Option<String>,
+    /// nombre del servicio compose, más corto que el del contenedor
+    #[serde(default)]
+    pub service: Option<String>,
     pub unhealthy: bool,
 }
 
@@ -31,7 +34,9 @@ fn container_submenu(
     c: &TrayContainer,
 ) -> tauri::Result<tauri::menu::Submenu<Wry>> {
     let running = c.state == "running";
-    let mut sub = SubmenuBuilder::new(app, format!("{} {}", state_dot(c), c.name)).item(
+    // dentro de un proyecto basta el nombre del servicio, como OrbStack
+    let label = c.service.as_deref().unwrap_or(&c.name);
+    let mut sub = SubmenuBuilder::new(app, format!("{} {}", state_dot(c), label)).item(
         &MenuItemBuilder::with_id(format!("sel:{}", c.id), "Ver en Narwhal").build(app)?,
     );
     sub = sub.separator();
@@ -78,6 +83,26 @@ fn build_menu(app: &AppHandle, containers: &[TrayContainer]) -> tauri::Result<Me
             let running = items.iter().filter(|c| c.state == "running").count();
             let mut sub =
                 SubmenuBuilder::new(app, format!("{project} · {running}/{}", items.len()));
+            // acciones del proyecto arriba, como OrbStack
+            sub = sub
+                .item(
+                    &MenuItemBuilder::with_id(format!("prj:stop:{project}"), "Detener todo")
+                        .build(app)?,
+                )
+                .item(
+                    &MenuItemBuilder::with_id(format!("prj:restart:{project}"), "Reiniciar")
+                        .build(app)?,
+                )
+                .separator()
+                .item(
+                    &MenuItemBuilder::with_id(
+                        format!("prj:down:{project}"),
+                        "Down — detener y eliminar",
+                    )
+                    .build(app)?,
+                )
+                .separator()
+                .item(&MenuItemBuilder::new("Servicios").enabled(false).build(app)?);
             for c in items {
                 sub = sub.item(&container_submenu(app, c)?);
             }
@@ -113,6 +138,26 @@ fn on_menu_item(app: &AppHandle, id: &str) {
             if let Some(container_id) = id.strip_prefix("sel:") {
                 show_main(app);
                 let _ = app.emit("tray-select", container_id.to_string());
+            } else if let Some(rest) = id.strip_prefix("prj:") {
+                if let Some((action, project)) = rest.split_once(':') {
+                    if matches!(action, "stop" | "restart" | "down") {
+                        let app = app.clone();
+                        let action = action.to_string();
+                        let project = project.to_string();
+                        tauri::async_runtime::spawn(async move {
+                            let state = app.state::<crate::commands::DockerState>();
+                            let Ok(host) = crate::commands::host(&state).await else {
+                                return;
+                            };
+                            let result = host
+                                .compose_action(&project, &action, Box::new(|_| {}))
+                                .await;
+                            if let Err(message) = result {
+                                let _ = app.emit("tray-error", message);
+                            }
+                        });
+                    }
+                }
             } else if let Some(rest) = id.strip_prefix("act:") {
                 if let Some((action, container_id)) = rest.split_once(':') {
                     let app = app.clone();

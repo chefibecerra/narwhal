@@ -14,6 +14,7 @@ use super::{
 };
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
+const COMPOSE_SERVICE_LABEL: &str = "com.docker.compose.service";
 const COMPOSE_CONFIG_LABEL: &str = "com.docker.compose.project.config_files";
 
 /// Un Docker cualquiera visto a través de bollard. Local habla con el socket
@@ -134,6 +135,11 @@ impl DockerHost for BollardHost {
                     .labels
                     .as_ref()
                     .and_then(|l| l.get(COMPOSE_PROJECT_LABEL))
+                    .cloned(),
+                compose_service: c
+                    .labels
+                    .as_ref()
+                    .and_then(|l| l.get(COMPOSE_SERVICE_LABEL))
                     .cloned(),
             })
             .collect())

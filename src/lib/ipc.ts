@@ -106,6 +106,7 @@ export const trayUpdate = (
     name: string;
     state: string;
     composeProject: string | null;
+    service: string | null;
     unhealthy: boolean;
   }[],
   notifyStopped: boolean,
