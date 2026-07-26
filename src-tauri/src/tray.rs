@@ -22,15 +22,25 @@ pub struct TrayContainer {
     pub unhealthy: bool,
 }
 
-/// Ítem con icono nativo de macOS (en otras plataformas queda sin icono).
+// los mismos iconos lucide de la app, renderizados por scripts/tray-icons.mjs
+const ICON_VER: &[u8] = include_bytes!("../icons/tray/ver.png");
+const ICON_CONSOLA: &[u8] = include_bytes!("../icons/tray/consola.png");
+const ICON_LOGS: &[u8] = include_bytes!("../icons/tray/logs.png");
+const ICON_DETENER: &[u8] = include_bytes!("../icons/tray/detener.png");
+const ICON_REINICIAR: &[u8] = include_bytes!("../icons/tray/reiniciar.png");
+const ICON_INICIAR: &[u8] = include_bytes!("../icons/tray/iniciar.png");
+const ICON_ELIMINAR: &[u8] = include_bytes!("../icons/tray/eliminar.png");
+const ICON_PROYECTO: &[u8] = include_bytes!("../icons/tray/proyecto.png");
+
+/// Ítem con icono lucide propio (coherente con la ventana de la app).
 fn action(
     app: &AppHandle,
     id: String,
     text: &str,
-    icon: NativeIcon,
+    icon: &'static [u8],
 ) -> tauri::Result<IconMenuItem<Wry>> {
     IconMenuItemBuilder::with_id(id, text)
-        .native_icon(icon)
+        .icon(tauri::image::Image::from_bytes(icon)?)
         .build(app)
 }
 
@@ -61,7 +71,7 @@ fn container_submenu(app: &AppHandle, c: &TrayContainer) -> tauri::Result<Submen
         app,
         format!("sel:{}", c.id),
         "Ver en Narwhal",
-        NativeIcon::RevealFreestanding,
+        ICON_VER,
     )?)?;
     sub.append(&PredefinedMenuItem::separator(app)?)?;
     if running {
@@ -69,33 +79,33 @@ fn container_submenu(app: &AppHandle, c: &TrayContainer) -> tauri::Result<Submen
             app,
             format!("exec:{}", c.id),
             "Consola",
-            NativeIcon::FollowLinkFreestanding,
+            ICON_CONSOLA,
         )?)?;
         sub.append(&action(
             app,
             format!("logs:{}", c.id),
             "Logs",
-            NativeIcon::ListView,
+            ICON_LOGS,
         )?)?;
         sub.append(&PredefinedMenuItem::separator(app)?)?;
         sub.append(&action(
             app,
             format!("act:stop:{}", c.id),
             "Detener",
-            NativeIcon::StopProgressFreestanding,
+            ICON_DETENER,
         )?)?;
         sub.append(&action(
             app,
             format!("act:restart:{}", c.id),
             "Reiniciar",
-            NativeIcon::RefreshFreestanding,
+            ICON_REINICIAR,
         )?)?;
     } else {
         sub.append(&action(
             app,
             format!("act:start:{}", c.id),
             "Iniciar",
-            NativeIcon::RightFacingTriangle,
+            ICON_INICIAR,
         )?)?;
     }
     Ok(sub)
@@ -127,32 +137,32 @@ fn build_menu(app: &AppHandle, containers: &[TrayContainer]) -> tauri::Result<Me
                 .filter(|c| c.compose_project.as_deref() == Some(project))
                 .collect();
             let running = items.iter().filter(|c| c.state == "running").count();
-            let sub = Submenu::with_id_and_native_icon(
+            let sub = Submenu::with_id_and_icon(
                 app,
                 format!("psub:{project}"),
                 format!("{project} · {running}/{}", items.len()),
                 true,
-                Some(NativeIcon::MultipleDocuments),
+                Some(tauri::image::Image::from_bytes(ICON_PROYECTO)?),
             )?;
             // acciones del proyecto arriba, como OrbStack
             sub.append(&action(
                 app,
                 format!("prj:stop:{project}"),
                 "Detener todo",
-                NativeIcon::StopProgressFreestanding,
+                ICON_DETENER,
             )?)?;
             sub.append(&action(
                 app,
                 format!("prj:restart:{project}"),
                 "Reiniciar",
-                NativeIcon::RefreshFreestanding,
+                ICON_REINICIAR,
             )?)?;
             sub.append(&PredefinedMenuItem::separator(app)?)?;
             sub.append(&action(
                 app,
                 format!("prj:down:{project}"),
                 "Down — detener y eliminar",
-                NativeIcon::TrashFull,
+                ICON_ELIMINAR,
             )?)?;
             sub.append(&PredefinedMenuItem::separator(app)?)?;
             sub.append(&MenuItemBuilder::new("Servicios").enabled(false).build(app)?)?;
