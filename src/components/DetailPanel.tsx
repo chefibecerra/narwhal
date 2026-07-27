@@ -295,7 +295,14 @@ function StatTile({
 }) {
   return (
     <div className="rounded-xl border border-border/60 bg-secondary/20 px-2 py-3 text-center">
-      <p className={cn("text-lg font-semibold tabular-nums", accent)}>
+      {/* key por valor: el número hace un pop al cambiar */}
+      <p
+        key={value}
+        className={cn(
+          "animate-in text-lg font-semibold tabular-nums duration-300 fade-in zoom-in-75",
+          accent,
+        )}
+      >
         {value}
       </p>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -465,6 +472,8 @@ function Sparkline({ history }: { history: number[] }) {
     >
       <polyline
         points={points}
+        pathLength={100}
+        className="spark-draw"
         fill="none"
         stroke="oklch(0.765 0.177 163.223 / 60%)"
         strokeWidth="1.5"

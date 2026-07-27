@@ -117,6 +117,20 @@
     user-select: text;
   }
 
+  /* la sparkline se dibuja de izquierda a derecha al montar */
+  @keyframes spark-draw {
+    from {
+      stroke-dashoffset: 100;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .spark-draw {
+    stroke-dasharray: 100;
+    animation: spark-draw 0.9s ease-out forwards;
+  }
+
   /* respiración lenta del logo en el panel de resumen */
   @keyframes narwhal-float {
     0%,

@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Eraser, RefreshCw, Rocket } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 import {
   AlertDialog,
@@ -38,6 +41,14 @@ export function Header() {
   const search = useContainers((s) => s.search);
   const setSearch = useContainers((s) => s.setSearch);
   const refresh = useContainers((s) => s.refresh);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const manualRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    // que el giro se aprecie aunque la respuesta sea instantánea
+    setTimeout(() => setRefreshing(false), 400);
+  };
   const setComposeOpen = useContainers((s) => s.setComposeOpen);
   const prune = useContainers((s) => s.prune);
 
@@ -108,11 +119,11 @@ export function Header() {
           variant="ghost"
           size="icon"
           className="size-7"
-          onClick={() => void refresh()}
+          onClick={() => void manualRefresh()}
           disabled={!connected}
           aria-label="Actualizar"
         >
-          <RefreshCw className="size-3.5" />
+          <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
         </Button>
       </div>
     </header>

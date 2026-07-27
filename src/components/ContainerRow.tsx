@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Play, RotateCw, Square, Terminal, Trash2 } from "lucide-react";
 
 import {
@@ -42,6 +43,18 @@ export function ContainerRow({
   const running = c.state === "running";
   const health = healthOf(c.status);
 
+  // onda expansiva de un ciclo cuando el estado cambia (arrancó / se paró)
+  const prevState = useRef(c.state);
+  const [ping, setPing] = useState(false);
+  useEffect(() => {
+    if (prevState.current !== c.state) {
+      prevState.current = c.state;
+      setPing(true);
+      const timer = setTimeout(() => setPing(false), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [c.state]);
+
   return (
     <div
       role="button"
@@ -53,7 +66,7 @@ export function ContainerRow({
         animationFillMode: "backwards",
       }}
       className={cn(
-        "group flex cursor-default animate-in items-center gap-3 rounded-lg px-3 py-2.5 transition-colors duration-300 fade-in slide-in-from-bottom-1",
+        "group flex cursor-default animate-in items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-300 fade-in slide-in-from-bottom-1 active:scale-[0.99]",
         selected ? "bg-accent" : "hover:bg-accent/40",
       )}
     >
@@ -67,6 +80,14 @@ export function ContainerRow({
               : (DOT_BY_STATE[c.state] ?? "bg-muted-foreground/30"),
           )}
         />
+        {ping && (
+          <span
+            className={cn(
+              "absolute -bottom-0.5 -right-0.5 size-2 animate-ping rounded-full",
+              running ? "bg-emerald-400" : "bg-muted-foreground/60",
+            )}
+          />
+        )}
       </span>
       <div className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">

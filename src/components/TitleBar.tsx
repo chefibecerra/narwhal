@@ -27,7 +27,11 @@ export function TitleBar() {
           geometría que el mockup de la web: hueco 14px, padding 5x12, radio 7 */}
       <div className="pointer-events-none absolute left-[88px] top-[6px] flex max-w-[50%] items-center gap-2 rounded-[7px] bg-secondary px-3.5 py-[7px]">
         <span className={cn("size-1.5 shrink-0 rounded-full", statusDot)} />
-        <span className="truncate text-[13px] font-medium leading-none">
+        {/* key por nombre: cambiar de host desliza la etiqueta */}
+        <span
+          key={activeName}
+          className="animate-in truncate text-[13px] font-medium leading-none duration-200 fade-in slide-in-from-left-1"
+        >
           {activeName}
         </span>
       </div>
