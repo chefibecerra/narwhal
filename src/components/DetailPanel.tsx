@@ -57,7 +57,7 @@ export function DetailPanel() {
   return (
     <aside
       key={c.id}
-      className="flex w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-200 fade-in slide-in-from-right-2"
+      className="hidden w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-200 fade-in slide-in-from-right-2 lg:flex"
     >
       <div className="border-b border-border/60 p-4">
         <div className="flex items-center gap-3">

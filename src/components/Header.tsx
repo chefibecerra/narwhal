@@ -46,19 +46,19 @@ export function Header() {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-5">
       <div className="pointer-events-none flex min-w-0 items-baseline gap-2.5">
-        <h1 className="text-[15px] font-semibold tracking-tight">
+        <h1 className="truncate text-[15px] font-semibold tracking-tight">
           {TITLES[view]}
         </h1>
-        <p className="truncate text-xs text-muted-foreground">
+        <p className="hidden truncate text-xs text-muted-foreground sm:block">
           {view === "containers" ? `${running} en ejecución` : `${count} en total`}
         </p>
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar…"
-          className="h-7 w-44 border-transparent bg-secondary/40 text-xs transition-colors focus-visible:bg-secondary/70"
+          className="h-7 w-28 border-transparent bg-secondary/40 text-xs transition-colors focus-visible:bg-secondary/70 md:w-44"
         />
         {view === "containers" ? (
           <Button
@@ -68,7 +68,8 @@ export function Header() {
             disabled={!connected}
             onClick={() => setComposeOpen(true)}
           >
-            <Rocket className="size-3.5" /> Compose
+            <Rocket className="size-3.5" />
+            <span className="hidden md:inline">Compose</span>
           </Button>
         ) : (
           <AlertDialog>
@@ -79,7 +80,8 @@ export function Header() {
                 className="h-7 text-xs text-muted-foreground hover:text-foreground"
                 disabled={!connected}
               >
-                <Eraser className="size-3.5" /> Limpiar
+                <Eraser className="size-3.5" />
+                <span className="hidden md:inline">Limpiar</span>
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>

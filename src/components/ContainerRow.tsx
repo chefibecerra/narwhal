@@ -79,7 +79,7 @@ export function ContainerRow({
             {c.name}
           </span>
           {health === "unhealthy" && (
-            <span className="shrink-0 animate-in rounded border border-amber-400/40 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-amber-400 duration-300 zoom-in">
+            <span className="hidden shrink-0 animate-in rounded border border-amber-400/40 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-amber-400 duration-300 zoom-in sm:inline">
               unhealthy
             </span>
           )}
@@ -88,12 +88,13 @@ export function ContainerRow({
           {c.image}
         </span>
       </div>
-      {/* stats y puertos a la derecha; en hover ceden el sitio a las acciones */}
+      {/* stats y puertos a la derecha; en hover ceden el sitio a las acciones.
+          En estrechez sobrevive el nombre: stats solo en xl, puertos desde sm */}
       <div className="ml-auto flex shrink-0 items-center gap-2 group-hover:hidden">
         {running && stats && (
           <span
             className={cn(
-              "font-mono text-[10px] tabular-nums",
+              "hidden font-mono text-[10px] tabular-nums xl:inline",
               stats.cpuPercent > 80
                 ? "text-amber-400"
                 : "text-muted-foreground/60",
@@ -102,7 +103,9 @@ export function ContainerRow({
             {stats.cpuPercent.toFixed(1)}% · {formatBytes(stats.memoryUsed)}
           </span>
         )}
-        <PortChips ports={c.ports} />
+        <span className="hidden items-center gap-1.5 sm:flex">
+          <PortChips ports={c.ports} />
+        </span>
       </div>
       <div
         className="ml-auto hidden shrink-0 items-center gap-1 group-hover:flex"

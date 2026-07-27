@@ -135,7 +135,7 @@ function App() {
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col">
           <Header />
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none">
             <div key={view} className="animate-in duration-200 fade-in">
               {view === "containers" ? <ContainerList /> : <ResourceList />}
             </div>

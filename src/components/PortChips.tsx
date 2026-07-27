@@ -28,9 +28,14 @@ export function PortChips({ ports }: { ports: PortMapping[] }) {
       : (s.hosts.find((h) => h.id === s.activeHostId)?.hostname ?? "localhost"),
   );
 
+  const unique = uniquePorts(ports);
+  // más de 3 puertos ensancharían la fila hasta aplastar el nombre
+  const shown = unique.slice(0, 3);
+  const hidden = unique.length - shown.length;
+
   return (
     <>
-      {uniquePorts(ports).map((p) =>
+      {shown.map((p) =>
         p.publicPort ? (
           <button
             key={`${p.publicPort}:${p.privatePort}`}
@@ -53,6 +58,20 @@ export function PortChips({ ports }: { ports: PortMapping[] }) {
             {p.privatePort}/{p.protocol}
           </span>
         ),
+      )}
+      {hidden > 0 && (
+        <span
+          title={unique
+            .map((p) =>
+              p.publicPort
+                ? `${p.publicPort}→${p.privatePort}`
+                : `${p.privatePort}/${p.protocol}`,
+            )
+            .join("  ")}
+          className="shrink-0 rounded-md bg-secondary/30 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground/50"
+        >
+          +{hidden}
+        </span>
       )}
     </>
   );
