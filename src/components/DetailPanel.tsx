@@ -229,7 +229,7 @@ function HostOverview() {
   ).size;
 
   return (
-    <aside className="flex w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-300 fade-in">
+    <aside className="hidden w-80 shrink-0 animate-in flex-col border-l border-border bg-card/20 duration-300 fade-in lg:flex">
       <div className="flex flex-1 flex-col items-center justify-center gap-5 p-6">
         <div className="relative">
           {/* halo difuminado para que el logo no muera sobre el fondo negro */}
