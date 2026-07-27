@@ -168,6 +168,10 @@
       background: rgba(255, 255, 255, 0.05); border-radius: 5px; padding: 2px 6px;
       color: var(--muted); white-space: nowrap;
     }
+    .rstats {
+      font-family: "SF Mono", ui-monospace, monospace; font-size: 9px;
+      color: var(--faint); white-space: nowrap;
+    }
     .chip b { color: var(--fg); font-weight: 500; }
     .main-status {
       display: flex; justify-content: space-between;
@@ -356,13 +360,13 @@
         </div>
         <div class="card reveal">
           <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg></span>
-          <h3>Consola dentro del contenedor</h3>
-          <p>Terminal real (xterm) vía Docker API: bash o sh, colores, resize. Funciona idéntico contra tus servidores remotos, a través del túnel.</p>
+          <h3>Consola en el contenedor… y en el servidor</h3>
+          <p>Terminal real (xterm) dentro de cualquier contenedor vía Docker API, y shell SSH directa al servidor desde la barra lateral. El flujo ssh + docker completo, sin salir de la app.</p>
         </div>
         <div class="card reveal">
           <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16"/><path d="m7 14 4-4 3 3 5-6"/></svg></span>
-          <h3>Stats y salud en vivo</h3>
-          <p>CPU y RAM por contenedor en streaming, y badges de healthcheck: si algo lleva 9 días unhealthy, te lo grita antes de que duela.</p>
+          <h3>En tiempo real, de verdad</h3>
+          <p>Escucha los eventos de Docker: arranques y caídas se reflejan al instante. CPU y RAM en cada fila, sparkline de tendencia, y badges de healthcheck que avisan antes de que duela.</p>
         </div>
         <div class="card reveal">
           <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg></span>
@@ -543,9 +547,9 @@
           {
             name: "mi-stack", counts: "3/3",
             rows: [
-              { icon: "🐘", name: "mi-stack-postgres", img: "postgres:16-alpine", chips: [["5433", "5432"]], st: "" },
-              { icon: "♦️", name: "mi-stack-redis", img: "redis:7-alpine", chips: [["6380", "6379"]], st: "" },
-              { icon: "🌐", name: "mi-stack-api", img: "node:22-alpine", chips: [["3000", "3000"]], st: "" },
+              { icon: "🐘", name: "mi-stack-postgres", img: "postgres:16-alpine", stats: "0.3% · 96 MB", chips: [["5433", "5432"]], st: "" },
+              { icon: "♦️", name: "mi-stack-redis", img: "redis:7-alpine", stats: "0.1% · 12 MB", chips: [["6380", "6379"]], st: "" },
+              { icon: "🌐", name: "mi-stack-api", img: "node:22-alpine", stats: "2.4% · 182 MB", chips: [["3000", "3000"]], st: "" },
             ],
           },
         ],
@@ -558,10 +562,10 @@
           {
             name: "prod", counts: "3/4",
             rows: [
-              { icon: "🚦", name: "prod-nginx", img: "nginx:alpine", chips: [["80", "80"], ["443", "443"]], st: "" },
-              { icon: "🌐", name: "prod-api", img: "ghcr.io/acme/api:1.4", chips: [["3000", "3000"]], st: "" },
-              { icon: "📬", name: "prod-queue", img: "rabbitmq:3", chips: [], st: "warn" },
-              { icon: "⚙️", name: "prod-worker", img: "ghcr.io/acme/worker:1.4", chips: [], st: "off" },
+              { icon: "🚦", name: "prod-nginx", img: "nginx:alpine", stats: "0.6% · 24 MB", chips: [["80", "80"], ["443", "443"]], st: "" },
+              { icon: "🌐", name: "prod-api", img: "ghcr.io/acme/api:1.4", stats: "4.8% · 310 MB", chips: [["3000", "3000"]], st: "" },
+              { icon: "📬", name: "prod-queue", img: "rabbitmq:3", stats: "1.1% · 145 MB", chips: [], st: "warn" },
+              { icon: "⚙️", name: "prod-worker", img: "ghcr.io/acme/worker:1.4", stats: "", chips: [], st: "off" },
             ],
           },
         ],
@@ -589,11 +593,14 @@
           const chips = row.chips
             .map(([pub, priv]) => `<span class="chip"><b>${pub}</b>→${priv}</span>`)
             .join("");
+          const stats = row.stats
+            ? `<span class="rstats">${row.stats}</span>`
+            : "";
           html += `
             <div class="crow" style="animation-delay:${delay}ms">
               <span class="cicon">${row.icon}<span class="st ${row.st}"></span></span>
               <span class="cmeta"><span class="cname">${row.name}</span><br /><span class="cimg mono">${row.img}</span></span>
-              <span class="chips">${chips}</span>
+              <span class="chips">${stats}${chips}</span>
             </div>`;
           delay += 70;
         }

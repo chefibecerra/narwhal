@@ -33,10 +33,12 @@ multiplataforma y con tus VPS dentro.
   (`stop`, `restart`, `down`).
 - **Despliega un Compose pegándolo** — pega tu `docker-compose.yml`, dale nombre y
   míralo levantarse con la salida en vivo. Se guarda en tu biblioteca para re-desplegar.
-- **Consola dentro del contenedor** — terminal real (xterm) vía Docker API: bash o sh,
-  colores, resize. Idéntica contra servidores remotos, a través del túnel.
-- **Logs y stats en vivo** — streaming con búsqueda, CPU y RAM por contenedor, y badges
-  de healthcheck que avisan cuando algo lleva días `unhealthy`.
+- **Consola en el contenedor… y en el servidor** — terminal real (xterm) dentro de
+  cualquier contenedor vía Docker API, y shell SSH directa al servidor desde la barra
+  lateral. El flujo `ssh` + `docker` completo, sin salir de la app.
+- **En tiempo real, de verdad** — escucha los eventos de Docker: arranques y caídas se
+  reflejan al instante. CPU y RAM en cada fila, sparkline de tendencia, logs en streaming
+  con búsqueda y badges de healthcheck que avisan antes de que duela.
 - **Imágenes, volúmenes y redes** — las cuatro vistas completas, con limpieza guiada
   (`prune`) que dice cuánto espacio liberaste.
 - **Barra de menú de macOS** — tus proyectos y su estado sin abrir la ventana, con

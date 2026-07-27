@@ -136,8 +136,15 @@ const MOCK = () => {
             ],
             networks: [{ name: "mi-stack_default", ip: "172.18.0.2" }],
           };
+        case "docker_stats_snapshot":
+          return CONTAINERS.filter((c) => c.state === "running").map((c, i) => ({
+            id: c.id,
+            cpuPercent: [0.4, 1.2, 3.1, 0.8, 0.2, 0.6][i] ?? 0.5,
+            memoryUsed: [182, 24, 96, 210, 145, 12][i % 6] * 1024 * 1024,
+          }));
         case "tray_update":
         case "docker_stats_stop":
+        case "docker_events_start":
           return;
         case "compose_saved_list":
           return [];
@@ -156,7 +163,8 @@ const out = process.argv[2] || "docs/screenshot.png";
 
 const browser = await chromium.launch();
 const page = await browser.newPage({
-  viewport: { width: 1200, height: 780 },
+  // ≥1280 (xl) para que salgan las stats por fila
+  viewport: { width: 1360, height: 830 },
   deviceScaleFactor: 2,
 });
 await page.addInitScript(MOCK);
@@ -176,9 +184,10 @@ await page.evaluate(() => {
   document.body.appendChild(d);
 });
 
-// selecciona un contenedor: el panel de detalle con stats en vivo luce
+// selecciona un contenedor: el panel de detalle con stats en vivo luce;
+// la espera deja que la sparkline junte unas cuantas muestras
 await page.getByText("mi-stack-postgres").first().click();
-await page.waitForTimeout(1600);
+await page.waitForTimeout(3200);
 
 await page.screenshot({ path: out });
 await browser.close();
