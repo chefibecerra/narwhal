@@ -89,6 +89,7 @@ pub fn run() {
             commands::docker_stats_snapshot,
             commands::docker_events_start,
             commands::docker_exec_start,
+            commands::host_shell_start,
             commands::docker_exec_write,
             commands::docker_exec_resize,
             commands::docker_exec_stop,

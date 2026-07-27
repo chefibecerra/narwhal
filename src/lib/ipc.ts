@@ -111,6 +111,18 @@ export const execResize = (sessionId: string, cols: number, rows: number) =>
 export const execStop = (sessionId: string) =>
   invoke<void>("docker_exec_stop", { sessionId });
 
+/** shell SSH al servidor del host activo; comparte write/resize/stop con exec */
+export const hostShellStart = (
+  sessionId: string,
+  cols: number,
+  rows: number,
+  onData: (data: ArrayBuffer) => void,
+) => {
+  const channel = new Channel<ArrayBuffer>();
+  channel.onmessage = onData;
+  return invoke<void>("host_shell_start", { sessionId, cols, rows, onData: channel });
+};
+
 /** resumen para el menú de la barra de macOS + preferencias de aviso */
 export const trayUpdate = (
   containers: {

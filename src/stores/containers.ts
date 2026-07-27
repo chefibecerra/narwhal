@@ -18,6 +18,9 @@ import type {
 export type ConnectionStatus = "connecting" | "connected" | "error";
 export type ContainerAction = "start" | "stop" | "restart" | "remove";
 
+/** qué terminal está abierto en el cajón: shell de un contenedor o del host */
+export type TermTarget = { kind: "exec"; id: string } | { kind: "host" };
+
 /** id del host local en la UI; los remotos usan su uuid */
 export const LOCAL_HOST = "local";
 
@@ -68,8 +71,8 @@ interface ContainersState {
   selectedId: string | null;
   /** pestaña activa del panel de detalle */
   detailTab: "info" | "logs";
-  /** contenedor con consola abierta en el cajón inferior */
-  execId: string | null;
+  /** terminal abierto en el cajón inferior */
+  term: TermTarget | null;
   /** filtro de búsqueda de la lista */
   search: string;
   hosts: HostConfig[];
@@ -99,7 +102,8 @@ interface ContainersState {
   setDetailTab: (tab: "info" | "logs") => void;
   setSearch: (search: string) => void;
   openExec: (id: string) => void;
-  closeExec: () => void;
+  openHostShell: () => void;
+  closeTerm: () => void;
   setView: (view: View) => void;
   setComposeOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
@@ -126,7 +130,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   rowStats: {},
   selectedId: null,
   detailTab: "info",
-  execId: null,
+  term: null,
   search: "",
   hosts: [],
   activeHostId: LOCAL_HOST,
@@ -174,7 +178,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
       error: null,
       activeHostId: hostId,
       selectedId: null,
-      execId: null,
+      term: null,
       containers: [],
       rowStats: {},
       images: [],
@@ -265,7 +269,8 @@ export const useContainers = create<ContainersState>((set, get) => ({
       if (action === "remove") {
         await ipc.removeContainer(id, true);
         if (get().selectedId === id) set({ selectedId: null });
-        if (get().execId === id) set({ execId: null });
+        const term = get().term;
+        if (term?.kind === "exec" && term.id === id) set({ term: null });
       }
       await get().refresh();
     } catch (e) {
@@ -281,8 +286,9 @@ export const useContainers = create<ContainersState>((set, get) => ({
   select: (id) => set({ selectedId: id }),
   setDetailTab: (detailTab) => set({ detailTab }),
   setSearch: (search) => set({ search }),
-  openExec: (id) => set({ execId: id }),
-  closeExec: () => set({ execId: null }),
+  openExec: (id) => set({ term: { kind: "exec", id } }),
+  openHostShell: () => set({ term: { kind: "host" } }),
+  closeTerm: () => set({ term: null }),
   setView: (view) => {
     set({ view, search: "" });
     void get().refresh();

@@ -392,6 +392,12 @@ impl DockerHost for BollardHost {
         Ok(out)
     }
 
+    fn ssh_session(
+        &self,
+    ) -> Option<std::sync::Arc<russh::client::Handle<crate::ssh::ClientHandler>>> {
+        self.tunnel.as_ref().map(|t| t.session())
+    }
+
     async fn events(&self, on_event: EventSink) -> Result<()> {
         use bollard::system::EventsOptions;
         let mut filters = std::collections::HashMap::new();

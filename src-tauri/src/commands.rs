@@ -342,6 +342,83 @@ pub async fn docker_exec_start(
     Ok(())
 }
 
+/// Shell SSH al servidor del host activo. Reutiliza el mapa de sesiones y
+/// los comandos write/resize/stop del exec: un solo sistema de terminales.
+#[tauri::command]
+pub async fn host_shell_start(
+    app: AppHandle,
+    state: State<'_, DockerState>,
+    session_id: String,
+    cols: u16,
+    rows: u16,
+    on_data: Channel<InvokeResponseBody>,
+) -> Result<(), String> {
+    let h = host(&state).await?;
+    let Some(ssh) = h.ssh_session() else {
+        return Err("El host activo no es remoto".into());
+    };
+
+    let mut channel = ssh
+        .channel_open_session()
+        .await
+        .map_err(|e| e.to_string())?;
+    // locale con la sesión; si el sshd no lo acepta, lo ignora (want_reply=false)
+    let lang = std::env::var("LANG").unwrap_or_else(|_| "en_US.UTF-8".into());
+    let _ = channel.set_env(false, "LANG", lang).await;
+    let _ = channel.set_env(false, "COLORTERM", "truecolor").await;
+    channel
+        .request_pty(false, "xterm-256color", cols as u32, rows as u32, 0, 0, &[])
+        .await
+        .map_err(|e| e.to_string())?;
+    channel
+        .request_shell(true)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let (tx, mut rx) = mpsc::channel::<ExecOp>(64);
+    state
+        .exec_sessions
+        .lock()
+        .await
+        .insert(session_id.clone(), tx);
+
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::select! {
+                op = rx.recv() => match op {
+                    Some(ExecOp::Data(bytes)) => {
+                        if channel.data(&bytes[..]).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(ExecOp::Resize(c, r)) => {
+                        let _ = channel.window_change(c as u32, r as u32, 0, 0).await;
+                    }
+                    None => break,
+                },
+                msg = channel.wait() => match msg {
+                    Some(russh::ChannelMsg::Data { data }) => {
+                        let _ = on_data.send(InvokeResponseBody::Raw(data.to_vec()));
+                    }
+                    Some(russh::ChannelMsg::ExtendedData { data, .. }) => {
+                        let _ = on_data.send(InvokeResponseBody::Raw(data.to_vec()));
+                    }
+                    Some(russh::ChannelMsg::ExitStatus { .. }) => break,
+                    Some(_) => {}
+                    None => break,
+                },
+            }
+        }
+        app.state::<DockerState>()
+            .exec_sessions
+            .lock()
+            .await
+            .remove(&session_id);
+        let _ = app.emit("exec-closed", session_id);
+    });
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn docker_exec_write(
     state: State<'_, DockerState>,

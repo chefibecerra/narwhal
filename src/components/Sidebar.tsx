@@ -9,6 +9,7 @@ import {
   Plus,
   Server,
   Settings,
+  Terminal,
 } from "lucide-react";
 
 import { ConnectDialog } from "@/components/ConnectDialog";
@@ -32,6 +33,7 @@ export function Sidebar() {
   const view = useContainers((s) => s.view);
   const setView = useContainers((s) => s.setView);
   const setSettingsOpen = useContainers((s) => s.setSettingsOpen);
+  const openHostShell = useContainers((s) => s.openHostShell);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<HostConfig | null>(null);
@@ -104,6 +106,11 @@ export function Sidebar() {
               setEditing(h);
               setFormOpen(true);
             }}
+            onShell={
+              activeHostId === h.id && status === "connected"
+                ? openHostShell
+                : undefined
+            }
           />
         ))}
 
@@ -151,6 +158,7 @@ function HostItem({
   dotClass,
   onClick,
   onEdit,
+  onShell,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -158,6 +166,8 @@ function HostItem({
   dotClass: string | null;
   onClick: () => void;
   onEdit?: () => void;
+  /** shell SSH al servidor; solo disponible con el host conectado */
+  onShell?: () => void;
 }) {
   return (
     <div
@@ -174,6 +184,19 @@ function HostItem({
     >
       {icon}
       <span className="min-w-0 flex-1 truncate">{label}</span>
+      {onShell && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onShell();
+          }}
+          aria-label={`Shell SSH en ${label}`}
+          title="Shell SSH al servidor"
+          className="hidden shrink-0 text-muted-foreground/60 hover:text-foreground group-hover:block"
+        >
+          <Terminal className="size-3.5" />
+        </button>
+      )}
       {onEdit && (
         <button
           onClick={(e) => {

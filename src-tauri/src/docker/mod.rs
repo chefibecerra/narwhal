@@ -159,6 +159,11 @@ pub trait DockerHost: Send + Sync {
     /// Escucha los eventos de contenedores de Docker y llama a `on_event`
     /// por cada uno: la UI reacciona al instante en vez de esperar el sondeo.
     async fn events(&self, on_event: EventSink) -> Result<()>;
+    /// Sesión SSH subyacente si el host es remoto (para la shell al servidor);
+    /// None en local.
+    fn ssh_session(
+        &self,
+    ) -> Option<std::sync::Arc<russh::client::Handle<crate::ssh::ClientHandler>>>;
     /// Shell interactiva dentro del contenedor vía Docker API exec (bash si
     /// existe, sh si no). Termina cuando el proceso sale o se cierra `ops`.
     async fn exec_shell(
