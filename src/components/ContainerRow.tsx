@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PortChips } from "@/components/PortChips";
 import { Button } from "@/components/ui/button";
-import { healthOf } from "@/lib/docker";
+import { formatBytes, healthOf } from "@/lib/docker";
 import { ServiceGlyph } from "@/lib/services";
 import { cn } from "@/lib/utils";
 import { useContainers } from "@/stores/containers";
@@ -38,6 +38,7 @@ export function ContainerRow({
   const openExec = useContainers((s) => s.openExec);
   const selected = useContainers((s) => s.selectedId === c.id);
   const busy = useContainers((s) => Boolean(s.busy[c.id]));
+  const stats = useContainers((s) => s.rowStats[c.id]);
   const running = c.state === "running";
   const health = healthOf(c.status);
 
@@ -87,8 +88,20 @@ export function ContainerRow({
           {c.image}
         </span>
       </div>
-      {/* puertos a la derecha, como el mockup; en hover ceden el sitio a las acciones */}
-      <div className="ml-auto flex shrink-0 items-center gap-1.5 group-hover:hidden">
+      {/* stats y puertos a la derecha; en hover ceden el sitio a las acciones */}
+      <div className="ml-auto flex shrink-0 items-center gap-2 group-hover:hidden">
+        {running && stats && (
+          <span
+            className={cn(
+              "font-mono text-[10px] tabular-nums",
+              stats.cpuPercent > 80
+                ? "text-amber-400"
+                : "text-muted-foreground/60",
+            )}
+          >
+            {stats.cpuPercent.toFixed(1)}% · {formatBytes(stats.memoryUsed)}
+          </span>
+        )}
         <PortChips ports={c.ports} />
       </div>
       <div

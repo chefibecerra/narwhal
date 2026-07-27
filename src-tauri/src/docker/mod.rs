@@ -56,6 +56,15 @@ pub struct ContainerStats {
     pub memory_limit: u64,
 }
 
+/// Muestra ligera por contenedor para las filas de la lista.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsSample {
+    pub id: String,
+    pub cpu_percent: f64,
+    pub memory_used: u64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageInfo {
@@ -141,6 +150,9 @@ pub trait DockerHost: Send + Sync {
     async fn logs(&self, id: &str, tail: u32, on_chunk: LogSink) -> Result<()>;
     /// Stream de CPU/RAM del contenedor (~1 muestra/s), mismo contrato que `logs`.
     async fn stats(&self, id: &str, on_stats: StatsSink) -> Result<()>;
+    /// Una muestra `one_shot` de TODOS los contenedores corriendo; la CPU se
+    /// calcula por delta contra la pasada anterior (que guarda el host).
+    async fn stats_snapshot(&self) -> Result<Vec<StatsSample>>;
     /// Shell interactiva dentro del contenedor vía Docker API exec (bash si
     /// existe, sh si no). Termina cuando el proceso sale o se cierra `ops`.
     async fn exec_shell(

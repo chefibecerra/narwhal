@@ -11,6 +11,7 @@ import type {
   NetworkInfo,
   SshConfigHost,
   SshKey,
+  StatsSample,
   VolumeInfo,
 } from "@/types";
 
@@ -70,6 +71,10 @@ export const startStats = (
 
 export const stopStats = (id: string) =>
   invoke<void>("docker_stats_stop", { id });
+
+/** una muestra de CPU/RAM de todos los contenedores corriendo */
+export const statsSnapshot = () =>
+  invoke<StatsSample[]>("docker_stats_snapshot");
 
 /** shell interactiva vía Docker API exec; la salida llega en crudo (bytes) */
 export const execStart = (

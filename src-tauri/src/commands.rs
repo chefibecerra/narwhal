@@ -8,7 +8,7 @@ use tokio::sync::{mpsc, Mutex};
 use crate::docker::host::BollardHost;
 use crate::docker::{
     ContainerDetails, ContainerInfo, ContainerStats, DockerHost, DockerInfo, ExecOp,
-    ImageInfo, LogChunk, NetworkInfo, VolumeInfo,
+    ImageInfo, LogChunk, NetworkInfo, StatsSample, VolumeInfo,
 };
 
 const LOCAL_KEY: &str = "local";
@@ -231,6 +231,13 @@ pub async fn docker_logs_stop(state: State<'_, DockerState>, id: String) -> Resu
         task.abort();
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn docker_stats_snapshot(
+    state: State<'_, DockerState>,
+) -> Result<Vec<StatsSample>, String> {
+    host(&state).await?.stats_snapshot().await
 }
 
 #[tauri::command]

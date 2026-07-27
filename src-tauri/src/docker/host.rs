@@ -10,7 +10,7 @@ use super::tunnel::SocketTunnel;
 use super::{
     BytesSink, ContainerDetails, ContainerInfo, ContainerStats, DockerHost, DockerInfo,
     ExecOp, ImageInfo, LogChunk, LogSink, MountInfo, NetworkAttachment, NetworkInfo,
-    PortMapping, Result, StatsSink, VolumeInfo,
+    PortMapping, Result, StatsSample, StatsSink, VolumeInfo,
 };
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
@@ -25,6 +25,9 @@ pub struct BollardHost {
     /// mantiene vivo el túnel SSH en modo remoto; None en local.
     /// Al soltar el host se cierra el túnel y la sesión SSH.
     tunnel: Option<SocketTunnel>,
+    /// contadores de CPU (total, sistema) de la pasada anterior por
+    /// contenedor: el % de las filas se calcula por delta entre sondeos
+    stats_prev: std::sync::Mutex<std::collections::HashMap<String, (u64, u64)>>,
 }
 
 impl BollardHost {
@@ -43,6 +46,7 @@ impl BollardHost {
         Ok(Self {
             docker,
             tunnel: None,
+            stats_prev: Default::default(),
         })
     }
 
@@ -50,6 +54,7 @@ impl BollardHost {
         Self {
             docker,
             tunnel: Some(tunnel),
+            stats_prev: Default::default(),
         }
     }
 
@@ -325,6 +330,66 @@ impl DockerHost for BollardHost {
             }
         }
         Ok(())
+    }
+
+    async fn stats_snapshot(&self) -> Result<Vec<StatsSample>> {
+        // solo los corriendo: `all: false`
+        let running = self
+            .docker
+            .list_containers(Some(ListContainersOptions::<String> {
+                all: false,
+                ..Default::default()
+            }))
+            .await
+            .map_err(|e| e.to_string())?;
+        let ids: Vec<String> = running.into_iter().filter_map(|c| c.id).collect();
+
+        // one_shot: sin el segundo de muestreo interno de Docker; todas en paralelo
+        let samples = futures_util::future::join_all(ids.into_iter().map(|id| {
+            let docker = self.docker.clone();
+            async move {
+                let mut stream = docker.stats(
+                    &id,
+                    Some(StatsOptions {
+                        stream: false,
+                        one_shot: true,
+                    }),
+                );
+                let stats = stream.next().await?.ok()?;
+                Some((id, stats))
+            }
+        }))
+        .await;
+
+        let mut prev = self.stats_prev.lock().unwrap();
+        let mut seen = std::collections::HashSet::new();
+        let mut out = Vec::new();
+        for (id, s) in samples.into_iter().flatten() {
+            let total = s.cpu_stats.cpu_usage.total_usage;
+            let system = s.cpu_stats.system_cpu_usage.unwrap_or(0);
+            let cpus = s.cpu_stats.online_cpus.unwrap_or(1) as f64;
+            // primera pasada sin referencia → 0%; a partir de la segunda, delta real
+            let cpu_percent = match prev.get(&id) {
+                Some((prev_total, prev_system))
+                    if system > *prev_system && total >= *prev_total =>
+                {
+                    ((total - prev_total) as f64 / (system - prev_system) as f64)
+                        * cpus
+                        * 100.0
+                }
+                _ => 0.0,
+            };
+            prev.insert(id.clone(), (total, system));
+            seen.insert(id.clone());
+            out.push(StatsSample {
+                id,
+                cpu_percent,
+                memory_used: s.memory_stats.usage.unwrap_or(0),
+            });
+        }
+        // sin fugas: fuera los contadores de contenedores que ya no corren
+        prev.retain(|id, _| seen.contains(id));
+        Ok(out)
     }
 
     async fn compose_up(&self, project: &str, yaml: &str, on_output: LogSink) -> Result<()> {

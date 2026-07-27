@@ -10,6 +10,7 @@ import type {
   HostConfig,
   ImageInfo,
   NetworkInfo,
+  StatsSample,
   View,
   VolumeInfo,
 } from "@/types";
@@ -50,6 +51,8 @@ interface ContainersState {
   containers: ContainerInfo[];
   /** acciones en curso por id de contenedor, para deshabilitar botones */
   busy: Record<string, ContainerAction>;
+  /** CPU/RAM por contenedor corriendo, refrescado con cada sondeo */
+  rowStats: Record<string, StatsSample>;
   /** contenedor seleccionado, mostrado en el panel de detalle */
   selectedId: string | null;
   /** pestaña activa del panel de detalle */
@@ -109,6 +112,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
   docker: null,
   containers: [],
   busy: {},
+  rowStats: {},
   selectedId: null,
   detailTab: "info",
   execId: null,
@@ -161,6 +165,7 @@ export const useContainers = create<ContainersState>((set, get) => ({
       selectedId: null,
       execId: null,
       containers: [],
+      rowStats: {},
       images: [],
       volumes: [],
       networks: [],
@@ -193,6 +198,19 @@ export const useContainers = create<ContainersState>((set, get) => ({
     try {
       const containers = await ipc.listContainers();
       set({ containers });
+      // stats de las filas en paralelo, sin retrasar el resto del refresh
+      if (containers.some((c) => c.state === "running")) {
+        void ipc
+          .statsSnapshot()
+          .then((samples) => {
+            const rowStats: Record<string, StatsSample> = {};
+            for (const sample of samples) rowStats[sample.id] = sample;
+            set({ rowStats });
+          })
+          .catch(() => {});
+      } else {
+        set({ rowStats: {} });
+      }
       const summary = containers.map((c) => ({
         id: c.id,
         name: c.name,

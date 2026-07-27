@@ -37,6 +37,13 @@ export interface ContainerStats {
   memoryLimit: number;
 }
 
+/** muestra ligera por contenedor para las filas de la lista */
+export interface StatsSample {
+  id: string;
+  cpuPercent: number;
+  memoryUsed: number;
+}
+
 export interface ImageInfo {
   id: string;
   tags: string[];
