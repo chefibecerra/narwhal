@@ -44,6 +44,17 @@ function scheduleReconnect(run: () => void) {
   reconnectDelay = Math.min(reconnectDelay * 2, 30000);
 }
 
+/** los eventos de Docker llegan en ráfagas (un compose up = docenas):
+ *  un solo refresh cada 250ms como mucho */
+let eventDebounce: ReturnType<typeof setTimeout> | null = null;
+function debouncedRefresh(run: () => void) {
+  if (eventDebounce) return;
+  eventDebounce = setTimeout(() => {
+    eventDebounce = null;
+    run();
+  }, 250);
+}
+
 interface ContainersState {
   status: ConnectionStatus;
   error: string | null;
@@ -179,6 +190,11 @@ export const useContainers = create<ContainersState>((set, get) => ({
       set({ status: "connected", docker });
       reconnectDelay = 2000;
       await get().refresh();
+      // en tiempo real: cada evento de Docker dispara un refresh inmediato;
+      // el sondeo periódico queda como red de seguridad
+      void ipc
+        .eventsStart(() => debouncedRefresh(() => void get().refresh()))
+        .catch(() => {});
       return null;
     } catch (e) {
       const raw = String(e);

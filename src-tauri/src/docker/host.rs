@@ -9,8 +9,8 @@ use futures_util::StreamExt;
 use super::tunnel::SocketTunnel;
 use super::{
     BytesSink, ContainerDetails, ContainerInfo, ContainerStats, DockerHost, DockerInfo,
-    ExecOp, ImageInfo, LogChunk, LogSink, MountInfo, NetworkAttachment, NetworkInfo,
-    PortMapping, Result, StatsSample, StatsSink, VolumeInfo,
+    EventSink, ExecOp, ImageInfo, LogChunk, LogSink, MountInfo, NetworkAttachment,
+    NetworkInfo, PortMapping, Result, StatsSample, StatsSink, VolumeInfo,
 };
 
 const COMPOSE_PROJECT_LABEL: &str = "com.docker.compose.project";
@@ -390,6 +390,23 @@ impl DockerHost for BollardHost {
         // sin fugas: fuera los contadores de contenedores que ya no corren
         prev.retain(|id, _| seen.contains(id));
         Ok(out)
+    }
+
+    async fn events(&self, on_event: EventSink) -> Result<()> {
+        use bollard::system::EventsOptions;
+        let mut filters = std::collections::HashMap::new();
+        filters.insert("type".to_string(), vec!["container".to_string()]);
+        let mut stream = self.docker.events(Some(EventsOptions::<String> {
+            filters,
+            ..Default::default()
+        }));
+        while let Some(event) = stream.next().await {
+            match event {
+                Ok(_) => on_event(),
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+        Ok(())
     }
 
     async fn compose_up(&self, project: &str, yaml: &str, on_output: LogSink) -> Result<()> {

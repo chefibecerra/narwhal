@@ -129,6 +129,9 @@ pub type StatsSink = Box<dyn Fn(ContainerStats) + Send + Sync>;
 
 pub type BytesSink = Box<dyn Fn(Vec<u8>) + Send + Sync>;
 
+/// Aviso de "algo cambió" del stream de eventos de Docker.
+pub type EventSink = Box<dyn Fn() + Send + Sync>;
+
 /// Entrada del terminal interactivo; cerrar el sender termina la sesión.
 pub enum ExecOp {
     Data(Vec<u8>),
@@ -153,6 +156,9 @@ pub trait DockerHost: Send + Sync {
     /// Una muestra `one_shot` de TODOS los contenedores corriendo; la CPU se
     /// calcula por delta contra la pasada anterior (que guarda el host).
     async fn stats_snapshot(&self) -> Result<Vec<StatsSample>>;
+    /// Escucha los eventos de contenedores de Docker y llama a `on_event`
+    /// por cada uno: la UI reacciona al instante en vez de esperar el sondeo.
+    async fn events(&self, on_event: EventSink) -> Result<()>;
     /// Shell interactiva dentro del contenedor vía Docker API exec (bash si
     /// existe, sh si no). Termina cuando el proceso sale o se cierra `ops`.
     async fn exec_shell(

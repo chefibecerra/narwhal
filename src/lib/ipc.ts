@@ -76,6 +76,13 @@ export const stopStats = (id: string) =>
 export const statsSnapshot = () =>
   invoke<StatsSample[]>("docker_stats_snapshot");
 
+/** stream de eventos de Docker: un aviso por cada cambio de contenedor */
+export const eventsStart = (onEvent: () => void) => {
+  const channel = new Channel<null>();
+  channel.onmessage = onEvent;
+  return invoke<void>("docker_events_start", { onEvent: channel });
+};
+
 /** shell interactiva vía Docker API exec; la salida llega en crudo (bytes) */
 export const execStart = (
   sessionId: string,

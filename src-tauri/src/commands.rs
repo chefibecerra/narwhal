@@ -234,6 +234,29 @@ pub async fn docker_logs_stop(state: State<'_, DockerState>, id: String) -> Resu
 }
 
 #[tauri::command]
+pub async fn docker_events_start(
+    state: State<'_, DockerState>,
+    on_event: Channel<()>,
+) -> Result<(), String> {
+    let h = host(&state).await?;
+
+    // un solo listener de eventos; el anterior se corta (y todos con install_host)
+    let mut streams = state.log_streams.lock().await;
+    if let Some(prev) = streams.remove("events") {
+        prev.abort();
+    }
+    let task = tauri::async_runtime::spawn(async move {
+        let _ = h
+            .events(Box::new(move || {
+                let _ = on_event.send(());
+            }))
+            .await;
+    });
+    streams.insert("events".into(), task);
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn docker_stats_snapshot(
     state: State<'_, DockerState>,
 ) -> Result<Vec<StatsSample>, String> {

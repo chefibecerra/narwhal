@@ -397,11 +397,17 @@ function InspectInfo({ container }: { container: ContainerInfo }) {
   );
 }
 
+const SPARK_SAMPLES = 60;
+
 function LiveStats({ id }: { id: string }) {
   const [stats, setStats] = useState<ContainerStats | null>(null);
+  const [history, setHistory] = useState<number[]>([]);
 
   useEffect(() => {
-    void ipc.startStats(id, setStats);
+    void ipc.startStats(id, (sample) => {
+      setStats(sample);
+      setHistory((prev) => [...prev, sample.cpuPercent].slice(-SPARK_SAMPLES));
+    });
     return () => void ipc.stopStats(id);
   }, [id]);
 
@@ -417,6 +423,7 @@ function LiveStats({ id }: { id: string }) {
         value={stats ? `${stats.cpuPercent.toFixed(1)} %` : "—"}
         percent={stats ? Math.min(stats.cpuPercent, 100) : 0}
       />
+      <Sparkline history={history} />
       <Meter
         label="RAM"
         value={
@@ -427,6 +434,45 @@ function LiveStats({ id }: { id: string }) {
         percent={memPercent}
       />
     </div>
+  );
+}
+
+/** último minuto de CPU: la tendencia dice más que el número */
+function Sparkline({ history }: { history: number[] }) {
+  if (history.length < 2) return null;
+
+  const width = 100;
+  const height = 22;
+  // escala al pico observado (mínimo 10%) para que la forma siempre se vea
+  const max = Math.max(10, ...history);
+  const step = width / (SPARK_SAMPLES - 1);
+  // ancladas a la derecha: la muestra más nueva pegada al borde derecho
+  const offset = width - (history.length - 1) * step;
+  const points = history
+    .map(
+      (value, i) =>
+        `${(offset + i * step).toFixed(1)},${(height - (value / max) * (height - 2)).toFixed(1)}`,
+    )
+    .join(" ");
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      className="h-6 w-full"
+      role="img"
+      aria-label="Tendencia de CPU del último minuto"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="oklch(0.765 0.177 163.223 / 60%)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
   );
 }
 
